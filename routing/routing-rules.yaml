@@ -1,0 +1,173 @@
+# OpenClaw 하네스 — 라우팅 규칙
+# 복잡도 × 카테고리 2D 매트릭스 + 우선순위 규칙 엔진
+# ⚠️ Claude/Gemini 제외 — GLM-5-turbo, GLM-5, GPT-5.4-Codex 만 사용
+version: "1.0"
+
+# ──────────────────────────────────────────────
+# 복잡도 티어 임계값
+# ──────────────────────────────────────────────
+complexity_tiers:
+  LOW:    { min: 0,  max: 4  }     # 단순 조회/포맷팅/번역
+  MEDIUM: { min: 5,  max: 9  }     # 표준 구현/리팩토링/디버깅
+  HIGH:   { min: 10, max: 20 }     # 아키텍처 설계/복잡한 추론
+
+# ──────────────────────────────────────────────
+# 카테고리 × 복잡도 → 모델 매트릭스
+# ──────────────────────────────────────────────
+routing_matrix:
+  coding_general:
+    LOW: glm-5-turbo
+    MEDIUM: gpt-5.4-codex
+    HIGH: gpt-5.4-codex
+
+  coding_arch:
+    LOW: gpt-5.4-codex
+    MEDIUM: gpt-5.4-codex
+    HIGH: gpt-5.4-codex
+
+  korean_nlp:
+    LOW: glm-5-turbo
+    MEDIUM: glm-5
+    HIGH: glm-5
+
+  reasoning:
+    LOW: glm-5-turbo
+    MEDIUM: gpt-5.4-codex
+    HIGH: gpt-5.4-codex
+
+  debugging:
+    LOW: glm-5-turbo
+    MEDIUM: gpt-5.4-codex
+    HIGH: gpt-5.4-codex
+
+  content_creation:
+    LOW: glm-5-turbo
+    MEDIUM: glm-5
+    HIGH: glm-5
+
+  data_analysis:
+    LOW: glm-5-turbo
+    MEDIUM: gpt-5.4-codex
+    HIGH: gpt-5.4-codex
+
+  security:
+    LOW: gpt-5.4-codex
+    MEDIUM: gpt-5.4-codex
+    HIGH: gpt-5.4-codex
+
+# ──────────────────────────────────────────────
+# 우선순위 규칙 엔진 (first-match)
+# ──────────────────────────────────────────────
+routing_rules:
+  # Priority 100: 사용자 명시 오버라이드
+  - priority: 100
+    name: user_override
+    condition: "user_specified_model != null"
+    action: use_user_specified_model
+    description: "사용자가 명시적으로 모델을 지정한 경우"
+
+  # Priority 90: 한국어 자연어 태스크
+  - priority: 90
+    name: korean_nlp
+    condition: "korean_ratio > 0.7 AND category in [korean_nlp, content_creation]"
+    action: glm-5
+    description: "한국어 비율이 높고 NLP/콘텐츠 태스크인 경우 GLM-5 사용"
+
+  # Priority 85: 한국어 혼합 (비율 0.5~0.7)
+  - priority: 85
+    name: korean_mixed
+    condition: "korean_ratio > 0.5 AND category in [korean_nlp, content_creation]"
+    action: glm-5-turbo
+    description: "한국어 비율이 중간이고 NLP 태스크인 경우 GLM-5-turbo 사용"
+
+  # Priority 80: 아키텍처 + 시스템 범위
+  - priority: 80
+    name: architecture
+    condition: "category == coding_arch AND complexity_tier == HIGH"
+    action: gpt-5.4-codex
+    description: "고복잡도 아키텍처 태스크는 GPT-5.4-Codex"
+
+  # Priority 70: 보안/감사 태스크
+  - priority: 70
+    name: security
+    condition: "category == security"
+    action: gpt-5.4-codex
+    description: "보안 태스크는 항상 GPT-5.4-Codex (최소 MEDIUM 수준)"
+
+  # Priority 60: 코딩 태스크 (표준)
+  - priority: 60
+    name: coding_standard
+    condition: "category in [coding_general, debugging] AND complexity_tier >= MEDIUM"
+    action: gpt-5.4-codex
+    description: "중간 이상 복잡도의 코딩/디버깅 태스크"
+
+  # Priority 50: 단순 조회/포맷팅
+  - priority: 50
+    name: simple_task
+    condition: "complexity_tier == LOW"
+    action: glm-5-turbo
+    description: "저복잡도 태스크는 GLM-5-turbo (비용 효율)"
+
+  # Priority 0: 기본값
+  - priority: 0
+    name: default
+    condition: "true"
+    action: gpt-5.4-codex
+    description: "매칭되는 규칙이 없으면 GPT-5.4-Codex 사용"
+
+# ──────────────────────────────────────────────
+# 신호 추출 가중치
+# ──────────────────────────────────────────────
+signal_weights:
+  lexical:
+    word_count_200: 2
+    word_count_500: 3
+    code_blocks_2: 1
+    file_paths_3: 2
+    architecture_keywords: 3       # "설계", "아키텍처", "마이그레이션", "리팩토링"
+    debugging_keywords: 2          # "에러", "버그", "크래시", "실패"
+    simple_keywords: -2            # "조회", "확인", "포맷", "변환"
+
+  structural:
+    subtask_2_5: 2
+    subtask_6_plus: 4
+    cross_file: 2
+    test_required: 1
+    difficult_revert: 2            # DB 마이그레이션, API 변경
+    system_wide_impact: 3
+
+  context:
+    previous_failures_2: 2
+    conversation_turns_10: 1
+    plan_steps_5: 2
+    agent_chain_depth_2: 1
+
+# ──────────────────────────────────────────────
+# 한국어 감지 설정
+# ──────────────────────────────────────────────
+korean_detection:
+  enabled: true
+  thresholds:
+    low: 0.3                       # 0.3 미만: 한국어 비율 무시
+    medium: 0.5                    # 0.5 이상: 한국어 힌트 활성화
+    high: 0.7                      # 0.7 이상: GLM 계열 강제 추천
+  coding_override: true            # 코딩 태스크에서도 한국어 주석 고려
+
+# ──────────────────────────────────────────────
+# 프롬프트 적응 (티어별)
+# ──────────────────────────────────────────────
+prompt_adaptation:
+  LOW:
+    strategy: concise
+    max_thinking: null
+    instructions: "직접적으로 답하라. 최소한의 출력."
+
+  MEDIUM:
+    strategy: balanced
+    max_thinking: brief
+    instructions: "체계적으로 접근하되 효율적으로. 핵심에 집중."
+
+  HIGH:
+    strategy: thorough
+    max_thinking: extended
+    instructions: "깊이 분석하라. 대안을 제시하고 트레이드오프를 설명하라."

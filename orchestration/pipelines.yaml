@@ -1,0 +1,146 @@
+# OpenClaw 하네스 — 파이프라인 정의
+# Plan → Work → Review 사이클 구성
+version: "1.0"
+
+# ──────────────────────────────────────────────
+# 실행 모드 정의
+# ──────────────────────────────────────────────
+modes:
+  solo:
+    description: "단일 태스크 — Orchestrator가 직접 구현"
+    condition: "task_count == 1 AND complexity_tier <= MEDIUM"
+    pipeline: [work]
+    spawn_agents: false
+
+  parallel:
+    description: "독립 태스크 2-3개 — Worker 병렬 spawn"
+    condition: "task_count in [2, 3] AND all_independent"
+    pipeline: [work_parallel, review]
+    spawn_agents: true
+    max_workers: 3
+
+  full:
+    description: "복잡한 태스크 — Plan→Work→Review 전체 사이클"
+    condition: "task_count >= 4 OR has_dependencies OR complexity_tier == HIGH"
+    pipeline: [plan, work_parallel, review]
+    spawn_agents: true
+    max_workers: 5
+
+# ──────────────────────────────────────────────
+# 파이프라인 단계 정의
+# ──────────────────────────────────────────────
+stages:
+  plan:
+    agent: planner
+    model_tier: HIGH
+    timeout_ms: 300000              # 5분
+    input:
+      - user_request
+      - project_context
+    output: plan_v1
+    hitl:
+      required: true                # 계획 승인 필수
+      prompt: "계획을 검토해주세요. 승인/수정/거부를 선택하세요."
+
+  work:
+    agent: worker
+    model_tier: MEDIUM
+    timeout_ms: 600000              # 10분
+    input:
+      - task_assignment
+      - related_files
+    output: work_result_v1
+    retry:
+      max_same_error: 3
+      model_upgrade: true           # 실패 시 상위 모델로 업그레이드
+
+  work_parallel:
+    agent: worker
+    model_tier: MEDIUM
+    timeout_ms: 600000
+    input:
+      - task_assignment
+      - related_files
+    output: work_result_v1
+    parallel: true
+    group_by: parallel_group
+    retry:
+      max_same_error: 3
+      model_upgrade: true
+
+  review:
+    agent: reviewer
+    model_tier: HIGH
+    timeout_ms: 300000              # 5분
+    input:
+      - diff
+      - plan
+      - dod
+    output: review_verdict_v1
+    on_verdict:
+      APPROVE: complete
+      REQUEST_CHANGES: fix_loop
+
+# ──────────────────────────────────────────────
+# Fix Loop 설정
+# ──────────────────────────────────────────────
+fix_loop:
+  max_iterations: 3
+  on_exhaustion: escalate           # 사용자 에스컬레이션
+  strategy:
+    iteration_1: "findings 기반 직접 수정"
+    iteration_2: "접근 방식 변경"
+    iteration_3: "최종 시도 + 부분 완료 보고"
+
+# ──────────────────────────────────────────────
+# 상태 머신
+# ──────────────────────────────────────────────
+state_machine:
+  initial: IDLE
+  transitions:
+    IDLE: [PLANNING, WORKING]       # solo 모드는 바로 WORKING
+    PLANNING: [WORKING, ESCALATED]
+    WORKING: [REVIEWING, ESCALATED]
+    REVIEWING: [COMPLETE, FIXING]
+    FIXING: [REVIEWING, ESCALATED]
+    COMPLETE: []                    # 종료 상태
+    ESCALATED: []                   # 종료 상태 (사용자 개입)
+
+# ──────────────────────────────────────────────
+# 동시 실행 설정
+# ──────────────────────────────────────────────
+concurrency:
+  max_workers: 5
+  max_total_sessions: 8
+  adaptive: true
+  rules:
+    - if: "model == gpt-5.4-codex"
+      max_workers: 3                # 고비용 모델은 동시 수 제한
+    - if: "model == glm-5-turbo"
+      max_workers: 7                # 저비용 모델은 더 많이 허용
+
+# ──────────────────────────────────────────────
+# 실패 대응 정책
+# ──────────────────────────────────────────────
+failure_policy:
+  worker_internal:
+    max_same_error: 3
+    strategy:
+      attempt_1: "원인 분석 후 수정"
+      attempt_2: "접근 방식 변경"
+      attempt_3: "중단 + 에스컬레이션 보고"
+    circuit_breaker:
+      max_tool_calls: 50
+      consecutive_same: 5
+
+  orchestrator_retry:
+    plan_failure:
+      action: "다른 모델로 Planner 재spawn"
+      max: 1
+    worker_failure:
+      action: "실패 원인 포함하여 새 Worker spawn"
+      model_upgrade: true
+      max: 1
+    review_loop:
+      max_fix_attempts: 3
+      on_exhaustion: escalate
