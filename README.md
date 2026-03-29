@@ -241,6 +241,25 @@ harness/
 └── state/                     #   런타임 상태 (git-ignored)
 ```
 
+## GLM 가입 및 인증
+
+하네스의 저비용 모델인 GLM-5-Turbo, GLM-5를 사용하려면 Z.ai 구독이 필요합니다.
+
+**가입:** https://z.ai/subscribe?ic=OTYO9JPFNV ($10/월, Claude Code/Cline 등 20+ 코딩 툴 지원)
+
+**API 키 설정:**
+```bash
+# .zshrc 또는 .bashrc에 추가
+export ZAI_API_KEY="your-zai-api-key"
+
+# OpenClaw config에 등록
+openclaw config set agents.defaults.providers.zai.apiKey "your-zai-api-key"
+```
+
+**모델 별칭:**
+- `glm-5-turbo` → `zai/glm-5-turbo` (저비용, 한국어 네이티브)
+- `glm-5` → `zai/glm-5` (한국어 NLP, 균형잡힌 추론)
+
 ## 설치
 
 ```bash
