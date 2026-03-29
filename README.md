@@ -113,6 +113,134 @@ bash scripts/bridge.sh gap-fix-start worker-1 gpt-5.4-codex
 └── 상태: 3/5
 ```
 
+## 모델 라우팅
+
+태스크의 **복잡도 × 카테고리** 2D 매트릭스로 자동 모델 선택. Claude/Gemini 제외, GLM/GPT만 사용.
+
+### 지원 모델
+
+| 모델 | 티어 | 비용 (in/out per 1k) | 컨텍스트 | 강점 |
+|------|------|---------------------|----------|------|
+| **GLM-5 Turbo** | LOW | $0.0003 / $0.0006 | 128K | 한국어 네이티브, 저비용, 빠른 응답 |
+| **GPT-5.4 Codex** | MEDIUM | $0.003 / $0.015 | 200K | 코드 생성, 디버깅, 아키텍처 |
+| **GLM-5** | MEDIUM | $0.002 / $0.008 | 128K | 한국어 NLP, 콘텐츠, 균형잡힌 추론 |
+
+### 라우팅 매트릭스
+
+| 카테고리 | LOW | MEDIUM | HIGH |
+|---------|-----|--------|------|
+| 코딩 (일반) | GLM-5-Turbo | GPT-5.4-Codex | GPT-5.4-Codex |
+| 코딩 (아키텍처) | GPT-5.4-Codex | GPT-5.4-Codex | GPT-5.4-Codex |
+| 한국어 NLP | GLM-5-Turbo | GLM-5 | GLM-5 |
+| 추론 | GLM-5-Turbo | GPT-5.4-Codex | GPT-5.4-Codex |
+| 보안 | GPT-5.4-Codex | GPT-5.4-Codex | GPT-5.4-Codex |
+| 콘텐츠 생성 | GLM-5-Turbo | GLM-5 | GLM-5 |
+
+### 우선순위 규칙 (first-match)
+
+1. **P100** — 사용자 명시 오버라이드
+2. **P90** — 한국어 비율 >70% + NLP/콘텐츠 → GLM-5
+3. **P85** — 한국어 비율 >50% + NLP/콘텐츠 → GLM-5-Turbo
+4. **P80** — 고복잡도 아키텍처 → GPT-5.4-Codex
+5. **P70** — 보안 태스크 → GPT-5.4-Codex
+6. **P60** — 중간 이상 코딩/디버깅 → GPT-5.4-Codex
+7. **P50** — 저복잡도 → GLM-5-Turbo (비용 효율)
+8. **P0** — 기본 → GPT-5.4-Codex
+
+### 복잡도 측정 신호
+
+**어휘 신호:** 단어 수, 코드 블록 수, 파일 경로 수, 아키텍처 키워드("설계", "마이그레이션", "리팩토링")
+
+**구조 신호:** 서브태스크 수, 크로스 파일 참조, 테스트 필요 여부, 시스템 전체 영향
+
+**컨텍스트 신호:** 이전 실패 횟수, 대화 턴 수, 계획 단계 수
+
+### 폴백 체인
+
+| 용도 | 1순위 | 2순위 | 3순위 |
+|------|-------|-------|-------|
+| 코딩 | GPT-5.4-Codex | GLM-5 | GLM-5-Turbo |
+| 한국어 | GLM-5 | GLM-5-Turbo | GPT-5.4-Codex |
+| 추론 | GPT-5.4-Codex | GLM-5 | GLM-5-Turbo |
+
+## 예산 프로파일
+
+| 프로파일 | 일일 토큰 | 태스크당 | 비용 한도 | 용도 |
+|---------|----------|---------|----------|------|
+| `minimal` | 500K | 30K | $1/일 | 개인/학습 |
+| `standard` | 2M | 100K | $10/일 | 팀/프로덕션 |
+| `full` | 무제한 | 500K | 무제한 | 엔터프라이즈 |
+
+**예산 초과 정책:** 80% 경고 → 95% GLM-5-Turbo 강제 다운그레이드 → 100% 신규 태스크 차단
+
+## 파이프라인 모드
+
+| 모드 | 조건 | 파이프라인 | 최대 Worker |
+|------|------|-----------|-------------|
+| `solo` | 태스크 1개 + 중간 이하 복잡도 | Work | 0 |
+| `parallel` | 독립 태스크 2~3개 | Work(병렬) → Review | 3 |
+| `full` | 태스크 4개+ or 의존성 있음 or 고복잡도 | Plan → Work(병렬) → Review | 5 |
+
+**동시 실행:** GPT-5.4-Codex 최대 3개, GLM-5-Turbo 최대 7개 (비용/부하 분산)
+
+### 상태 머신
+
+```
+IDLE → PLANNING → WORKING → REVIEWING → COMPLETE
+                        ↓           ↓
+                    ESCALATED    FIXING → REVIEWING (최대 3회)
+```
+
+## 메시지 프로토콜
+
+에이전트 간 통신은 `sessions_send` + YAML 봉투 포맷:
+
+```yaml
+message:
+  type: task_assign
+  from: orchestrator
+  to: worker-1
+  timestamp: "2026-03-26T14:30:00Z"
+  correlation_id: "cycle-001"
+  payload:
+    task:
+      id: T1
+      content: "태스크 설명"
+      dod: "검증 가능한 완료 기준"
+    related_files:
+      - path: src/auth/middleware.ts
+        reason: "수정 대상"
+```
+
+**메시지 유형:** `plan_request`, `plan`, `task_assign`, `work_result`, `review_request`, `review_verdict`, `fix_request`, `escalation`, `status_update`
+
+## 파일 구조
+
+```
+harness/
+├── agents/                    # 에이전트 정의
+│   ├── planner.md             #   계획 수립 (read-only)
+│   ├── worker.md              #   코드 구현 (read+write+exec)
+│   ├── reviewer.md            #   5관점 리뷰 + 갭 감지 (read-only)
+│   ├── debugger.md            #   체계적 디버깅 (read+exec)
+│   └── bridge.md              #   브릿지 참조
+├── scripts/
+│   ├── bridge.sh              #   브릿지 상태 추적 + 알림
+│   ├── orchestrate.sh         #   오케스트레이터 진입
+│   ├── route-task.sh          #   라우팅 엔진
+│   ├── spawn-agent.sh         #   에이전트 스폰 래퍼
+│   └── doctor.sh              #   진단 스크립트
+├── routing/
+│   ├── models.yaml            #   모델 카탈로그 + 비용
+│   ├── routing-rules.yaml     #   라우팅 규칙 엔진
+│   └── budget-profiles.yaml   #   예산 프로파일
+├── orchestration/
+│   ├── pipelines.yaml         #   파이프라인 정의
+│   └── message-protocol.md    #   메시지 프로토콜
+├── examples/                  #   예시 산출물
+└── state/                     #   런타임 상태 (git-ignored)
+```
+
 ## 설치
 
 ```bash
