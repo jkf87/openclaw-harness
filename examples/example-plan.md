@@ -2,7 +2,7 @@
 
 > 사용자 요청: "Todo 앱 만들어줘"
 > 에이전트: planner
-> 모델: gpt-5.4-codex (HIGH 티어 → 아키텍처 카테고리)
+> 모델: gpt-5.3-codex (HIGH 티어 → 아키텍처 카테고리)
 
 ## plan_v1 출력
 
@@ -70,12 +70,12 @@ plan:
 
 ```yaml
 routing_decision:
-  model: gpt-5.4-codex
+  model: gpt-5.3-codex
   category: coding_general
   complexity_score: 6
   complexity_tier: MEDIUM
   korean_ratio: 0.85
   budget_profile: standard
-  fallback_chain: [gpt-5.4-codex, glm-5, glm-5-turbo]
+  fallback_chain: [gpt-5.3-codex, glm-5, glm-5-turbo]
   reason: "카테고리=coding_general, 복잡도=MEDIUM(6점), 한국어=0.85"
 ```

@@ -59,9 +59,12 @@ cost_reference:
   glm-5-turbo:
     input_per_1k: 0.0003
     output_per_1k: 0.0006
-  gpt-5.4-codex:
+  gpt-5.3-codex:
     input_per_1k: 0.003
     output_per_1k: 0.015
   glm-5:
     input_per_1k: 0.002
     output_per_1k: 0.008
+  glm-5.1:
+    input_per_1k: 0
+    output_per_1k: 0

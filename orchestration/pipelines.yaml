@@ -114,10 +114,12 @@ concurrency:
   max_total_sessions: 8
   adaptive: true
   rules:
-    - if: "model == gpt-5.4-codex"
+    - if: "model == gpt-5.3-codex"
       max_workers: 3                # 고비용 모델은 동시 수 제한
     - if: "model == glm-5-turbo"
       max_workers: 7                # 저비용 모델은 더 많이 허용
+    - if: "model == glm-5.1"
+      max_workers: 2                # 고성능 장문/추론 모델은 보수적으로 제한
 
 # ──────────────────────────────────────────────
 # 실패 대응 정책

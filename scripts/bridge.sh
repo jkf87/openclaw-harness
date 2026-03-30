@@ -17,7 +17,7 @@ set -euo pipefail
 # ──────────────────────────────────────────────
 HARNESS_DIR="${HARNESS_DIR:-$(cd "$(dirname "$0")/.." && pwd)}"
 STATE_DIR="${HARNESS_DIR}/state"
-BRIDGE_STATE="${STATE_DIR}/bridge-state.json"
+BRIDGE_STATE="${BRIDGE_STATE:-${STATE_DIR}/bridge-state.json}"
 
 mkdir -p "${STATE_DIR}"
 

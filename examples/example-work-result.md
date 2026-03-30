@@ -2,7 +2,7 @@
 
 > 태스크: T3 — Todo 목록 UI 컴포넌트 구현
 > 에이전트: worker
-> 모델: gpt-5.4-codex (MEDIUM 티어)
+> 모델: gpt-5.3-codex (MEDIUM 티어)
 
 ## work_result_v1 출력
 

@@ -63,6 +63,15 @@ calculate_complexity() {
         score=$((score + 3))
     elif [[ "$word_count" -gt 200 ]]; then
         score=$((score + 2))
+    elif [[ "$word_count" -gt 25 ]]; then
+        score=$((score + 1))
+    fi
+
+    # 문자 수 (한국어 장문 요청 보정)
+    local char_count
+    char_count=$(printf '%s' "$text" | wc -c | xargs)
+    if [[ "$char_count" -gt 90 ]]; then
+        score=$((score + 1))
     fi
 
     # 아키텍처 키워드
@@ -70,14 +79,26 @@ calculate_complexity() {
         score=$((score + 3))
     fi
 
+    # 고난도 추론/기획 키워드
+    if echo "$text" | grep -qiE '전략|로드맵|장기|리스크|대안|트레이드오프|trade[- ]?off|의사결정|decision|비교|compare|분석하고.*설계|관점|우선순위|종합'; then
+        score=$((score + 4))
+    fi
+
     # 디버깅 키워드
     if echo "$text" | grep -qiE '에러|error|버그|bug|크래시|crash|실패|fail|exception'; then
         score=$((score + 2))
     fi
 
-    # 단순 키워드 (감점)
-    if echo "$text" | grep -qiE '조회|확인|포맷|변환|convert|format|check|list'; then
-        score=$((score - 2))
+    # 장문 요청/다단 지시 보정
+    if echo "$text" | grep -qE '그리고|또는|뿐만 아니라|동시에|까지|및'; then
+        score=$((score + 2))
+    fi
+
+    # 단순 키워드 (감점) — 고난도 키워드가 없을 때만
+    if ! echo "$text" | grep -qiE '전략|로드맵|리스크|대안|트레이드오프|의사결정|비교|설계|architecture'; then
+        if echo "$text" | grep -qiE '조회|확인|포맷|변환|convert|format|check|list'; then
+            score=$((score - 2))
+        fi
     fi
 
     # 파일 경로 수
@@ -180,7 +201,11 @@ resolve_model() {
     if awk "BEGIN { exit !($korean_ratio > 0.7) }"; then
         case "$category" in
             korean_nlp|content_creation)
-                echo "glm-5"
+                if [[ "$tier" == "HIGH" ]]; then
+                    echo "glm-5.1"
+                else
+                    echo "glm-5"
+                fi
                 return
                 ;;
         esac
@@ -202,38 +227,38 @@ resolve_model() {
     # 카테고리 × 복잡도 매트릭스
     case "${category}_${tier}" in
         coding_general_LOW)     echo "glm-5-turbo" ;;
-        coding_general_MEDIUM)  echo "gpt-5.4-codex" ;;
-        coding_general_HIGH)    echo "gpt-5.4-codex" ;;
+        coding_general_MEDIUM)  echo "gpt-5.3-codex" ;;
+        coding_general_HIGH)    echo "gpt-5.3-codex" ;;
 
-        coding_arch_LOW)        echo "gpt-5.4-codex" ;;
-        coding_arch_MEDIUM)     echo "gpt-5.4-codex" ;;
-        coding_arch_HIGH)       echo "gpt-5.4-codex" ;;
+        coding_arch_LOW)        echo "gpt-5.3-codex" ;;
+        coding_arch_MEDIUM)     echo "gpt-5.3-codex" ;;
+        coding_arch_HIGH)       echo "gpt-5.3-codex" ;;
 
         korean_nlp_LOW)         echo "glm-5-turbo" ;;
         korean_nlp_MEDIUM)      echo "glm-5" ;;
-        korean_nlp_HIGH)        echo "glm-5" ;;
+        korean_nlp_HIGH)        echo "glm-5.1" ;;
 
         reasoning_LOW)          echo "glm-5-turbo" ;;
-        reasoning_MEDIUM)       echo "gpt-5.4-codex" ;;
-        reasoning_HIGH)         echo "gpt-5.4-codex" ;;
+        reasoning_MEDIUM)       echo "gpt-5.3-codex" ;;
+        reasoning_HIGH)         echo "glm-5.1" ;;
 
         debugging_LOW)          echo "glm-5-turbo" ;;
-        debugging_MEDIUM)       echo "gpt-5.4-codex" ;;
-        debugging_HIGH)         echo "gpt-5.4-codex" ;;
+        debugging_MEDIUM)       echo "gpt-5.3-codex" ;;
+        debugging_HIGH)         echo "gpt-5.3-codex" ;;
 
         content_creation_LOW)   echo "glm-5-turbo" ;;
         content_creation_MEDIUM) echo "glm-5" ;;
-        content_creation_HIGH)  echo "glm-5" ;;
+        content_creation_HIGH)  echo "glm-5.1" ;;
 
         data_analysis_LOW)      echo "glm-5-turbo" ;;
-        data_analysis_MEDIUM)   echo "gpt-5.4-codex" ;;
-        data_analysis_HIGH)     echo "gpt-5.4-codex" ;;
+        data_analysis_MEDIUM)   echo "gpt-5.3-codex" ;;
+        data_analysis_HIGH)     echo "gpt-5.3-codex" ;;
 
-        security_LOW)           echo "gpt-5.4-codex" ;;
-        security_MEDIUM)        echo "gpt-5.4-codex" ;;
-        security_HIGH)          echo "gpt-5.4-codex" ;;
+        security_LOW)           echo "gpt-5.3-codex" ;;
+        security_MEDIUM)        echo "gpt-5.3-codex" ;;
+        security_HIGH)          echo "gpt-5.3-codex" ;;
 
-        *)                      echo "gpt-5.4-codex" ;;
+        *)                      echo "gpt-5.3-codex" ;;
     esac
 }
 
@@ -243,18 +268,30 @@ resolve_model() {
 get_fallback_chain() {
     local category="$1"
     local primary="$2"
+    local raw_chain=""
 
     case "$category" in
         coding_general|coding_arch|debugging|security|data_analysis|reasoning)
-            echo "${primary},glm-5,glm-5-turbo"
+            raw_chain="${primary},glm-5.1,glm-5,glm-5-turbo"
             ;;
         korean_nlp|content_creation)
-            echo "${primary},glm-5-turbo,gpt-5.4-codex"
+            raw_chain="${primary},glm-5,glm-5-turbo,gpt-5.3-codex"
             ;;
         *)
-            echo "${primary},glm-5,glm-5-turbo"
+            raw_chain="${primary},glm-5.1,glm-5,glm-5-turbo"
             ;;
     esac
+
+    local item
+    local deduped=""
+    IFS=',' read -r -a items <<< "$raw_chain"
+    for item in "${items[@]}"; do
+        if [[ ",$deduped," != *",${item},"* ]]; then
+            deduped="${deduped:+${deduped},}${item}"
+        fi
+    done
+
+    echo "$deduped"
 }
 
 # ──────────────────────────────────────────────

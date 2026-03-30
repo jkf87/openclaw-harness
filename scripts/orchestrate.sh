@@ -122,7 +122,7 @@ run_solo() {
     local routing_result
     routing_result=$("${SCRIPT_DIR}/route-task.sh" "$TASK_DESC" "auto" "standard" 2>/dev/null || echo "")
     local model
-    model=$(echo "$routing_result" | grep "model:" | head -1 | sed 's/.*model:[[:space:]]*//' || echo "gpt-5.4-codex")
+    model=$(echo "$routing_result" | grep "model:" | head -1 | sed 's/.*model:[[:space:]]*//' || echo "gpt-5.3-codex")
 
     log_info "선택된 모델: ${model}"
 
@@ -159,7 +159,7 @@ run_parallel() {
         # 라우팅으로 모델 결정
         local model
         model=$("${SCRIPT_DIR}/route-task.sh" "$task" "auto" "standard" 2>/dev/null \
-            | grep "model:" | head -1 | sed 's/.*model:[[:space:]]*//' || echo "gpt-5.4-codex")
+            | grep "model:" | head -1 | sed 's/.*model:[[:space:]]*//' || echo "gpt-5.3-codex")
 
         # 병렬 spawn (백그라운드)
         "${SCRIPT_DIR}/spawn-agent.sh" "worker" "$task" "$model" &
@@ -209,7 +209,7 @@ run_full() {
     # 라우팅으로 모델 결정
     local model
     model=$("${SCRIPT_DIR}/route-task.sh" "$TASK_DESC" "auto" "standard" 2>/dev/null \
-        | grep "model:" | head -1 | sed 's/.*model:[[:space:]]*//' || echo "gpt-5.4-codex")
+        | grep "model:" | head -1 | sed 's/.*model:[[:space:]]*//' || echo "gpt-5.3-codex")
 
     "${SCRIPT_DIR}/spawn-agent.sh" "worker" "$TASK_DESC" "$model"
 

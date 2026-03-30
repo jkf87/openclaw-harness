@@ -1,6 +1,6 @@
 # OpenClaw 하네스 — 라우팅 규칙
 # 복잡도 × 카테고리 2D 매트릭스 + 우선순위 규칙 엔진
-# ⚠️ Claude/Gemini 제외 — GLM-5-turbo, GLM-5, GPT-5.4-Codex 만 사용
+# ⚠️ Claude/Gemini 제외 — GLM-5-turbo, GLM-5, GLM-5.1, GPT-5.4-Codex 만 사용
 version: "1.0"
 
 # ──────────────────────────────────────────────
@@ -17,43 +17,43 @@ complexity_tiers:
 routing_matrix:
   coding_general:
     LOW: glm-5-turbo
-    MEDIUM: gpt-5.4-codex
-    HIGH: gpt-5.4-codex
+    MEDIUM: gpt-5.3-codex
+    HIGH: gpt-5.3-codex
 
   coding_arch:
-    LOW: gpt-5.4-codex
-    MEDIUM: gpt-5.4-codex
-    HIGH: gpt-5.4-codex
+    LOW: gpt-5.3-codex
+    MEDIUM: gpt-5.3-codex
+    HIGH: gpt-5.3-codex
 
   korean_nlp:
     LOW: glm-5-turbo
     MEDIUM: glm-5
-    HIGH: glm-5
+    HIGH: glm-5.1
 
   reasoning:
     LOW: glm-5-turbo
-    MEDIUM: gpt-5.4-codex
-    HIGH: gpt-5.4-codex
+    MEDIUM: gpt-5.3-codex
+    HIGH: glm-5.1
 
   debugging:
     LOW: glm-5-turbo
-    MEDIUM: gpt-5.4-codex
-    HIGH: gpt-5.4-codex
+    MEDIUM: gpt-5.3-codex
+    HIGH: gpt-5.3-codex
 
   content_creation:
     LOW: glm-5-turbo
     MEDIUM: glm-5
-    HIGH: glm-5
+    HIGH: glm-5.1
 
   data_analysis:
     LOW: glm-5-turbo
-    MEDIUM: gpt-5.4-codex
-    HIGH: gpt-5.4-codex
+    MEDIUM: gpt-5.3-codex
+    HIGH: gpt-5.3-codex
 
   security:
-    LOW: gpt-5.4-codex
-    MEDIUM: gpt-5.4-codex
-    HIGH: gpt-5.4-codex
+    LOW: gpt-5.3-codex
+    MEDIUM: gpt-5.3-codex
+    HIGH: gpt-5.3-codex
 
 # ──────────────────────────────────────────────
 # 우선순위 규칙 엔진 (first-match)
@@ -70,8 +70,8 @@ routing_rules:
   - priority: 90
     name: korean_nlp
     condition: "korean_ratio > 0.7 AND category in [korean_nlp, content_creation]"
-    action: glm-5
-    description: "한국어 비율이 높고 NLP/콘텐츠 태스크인 경우 GLM-5 사용"
+    action: glm-5.1
+    description: "한국어 비율이 높고 고난도 NLP/콘텐츠 태스크면 GLM-5.1 우선, 일반 작업은 매트릭스에서 결정"
 
   # Priority 85: 한국어 혼합 (비율 0.5~0.7)
   - priority: 85
@@ -84,21 +84,28 @@ routing_rules:
   - priority: 80
     name: architecture
     condition: "category == coding_arch AND complexity_tier == HIGH"
-    action: gpt-5.4-codex
+    action: gpt-5.3-codex
     description: "고복잡도 아키텍처 태스크는 GPT-5.4-Codex"
+
+  # Priority 75: 고복잡도 추론/한국어 장문
+  - priority: 75
+    name: advanced_glm_reasoning
+    condition: "complexity_tier == HIGH AND category in [reasoning, korean_nlp, content_creation]"
+    action: glm-5.1
+    description: "고복잡도 추론/한국어 장문 작업은 GLM-5.1"
 
   # Priority 70: 보안/감사 태스크
   - priority: 70
     name: security
     condition: "category == security"
-    action: gpt-5.4-codex
+    action: gpt-5.3-codex
     description: "보안 태스크는 항상 GPT-5.4-Codex (최소 MEDIUM 수준)"
 
   # Priority 60: 코딩 태스크 (표준)
   - priority: 60
     name: coding_standard
     condition: "category in [coding_general, debugging] AND complexity_tier >= MEDIUM"
-    action: gpt-5.4-codex
+    action: gpt-5.3-codex
     description: "중간 이상 복잡도의 코딩/디버깅 태스크"
 
   # Priority 50: 단순 조회/포맷팅
@@ -112,7 +119,7 @@ routing_rules:
   - priority: 0
     name: default
     condition: "true"
-    action: gpt-5.4-codex
+    action: gpt-5.3-codex
     description: "매칭되는 규칙이 없으면 GPT-5.4-Codex 사용"
 
 # ──────────────────────────────────────────────

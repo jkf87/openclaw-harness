@@ -118,7 +118,7 @@ echo "[4/5] 환경 변수 검사"
 
 env_vars=(
     "ZAI_API_KEY:Z.ai API 키 (GLM-5 시리즈) — openclaw onboard로 OAuth 설정"
-    "OPENAI_API_KEY:OpenAI API 키 (GPT-5.4 Codex) — openclaw onboard로 OAuth 설정"
+    "OPENAI_API_KEY:OpenAI API 키 (GPT-5.3 Codex) — openclaw onboard로 OAuth 설정"
 )
 
 for entry in "${env_vars[@]}"; do

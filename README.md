@@ -11,6 +11,7 @@
 - **📡 브릿지 알림** — 에이전트 상태를 실시간으로 텔레그램/디스코드 등 채널에 푸시
 - **🧭 모델 라우팅** — 태스크 복잡도에 따라 적절한 모델 자동 선택 (GLM/GPT/Claude)
 - **🇰🇷 한국어 최적화** — 한국어 감지 시 GLM 자동 라우팅
+- **🆕 GLM-5.1 지원** — 최신 Z.ai 모델을 OpenClaw/Claude Code 설정과 함께 반영
 
 ## 아키텍처
 
@@ -53,10 +54,10 @@
 
 | 에이전트 | 역할 | 권한 | 추천 모델 |
 |---------|------|------|----------|
-| **planner** | 계획 수립 | read-only | glm-5-turbo |
-| **worker** | 코드 구현 | read+write+exec | gpt-5.4-codex |
-| **reviewer** | 5관점 리뷰 + 갭 감지 | read-only | glm-5-turbo |
-| **debugger** | 체계적 디버깅 | read+exec | glm-5-turbo |
+| **planner** | 계획 수립 | read-only | glm-5.1 |
+| **worker** | 코드 구현 | read+write+exec | gpt-5.3-codex |
+| **reviewer** | 5관점 리뷰 + 갭 감지 | read-only | glm-5.1 |
+| **debugger** | 체계적 디버깅 | read+exec | glm-5 |
 
 ## Reviewer 5관점
 
@@ -94,7 +95,7 @@ bash scripts/bridge.sh phase WORKING
 bash scripts/bridge.sh gap-detected worker-1 scope_creep "알림 자의 추가" "알림 제거"
 
 # 갭 수정 시작
-bash scripts/bridge.sh gap-fix-start worker-1 gpt-5.4-codex
+bash scripts/bridge.sh gap-fix-start worker-1 gpt-5.3-codex
 ```
 
 ### 알림 예시
@@ -122,8 +123,9 @@ bash scripts/bridge.sh gap-fix-start worker-1 gpt-5.4-codex
 | 모델 | 티어 | 비용 (in/out per 1k) | 컨텍스트 | 강점 |
 |------|------|---------------------|----------|------|
 | **GLM-5 Turbo** | LOW | $0.0003 / $0.0006 | 128K | 한국어 네이티브, 저비용, 빠른 응답 |
-| **GPT-5.4 Codex** | MEDIUM | $0.003 / $0.015 | 200K | 코드 생성, 디버깅, 아키텍처 |
+| **GPT-5.3 Codex** | MEDIUM | $0.003 / $0.015 | 200K | 코드 생성, 디버깅, 아키텍처 |
 | **GLM-5** | MEDIUM | $0.002 / $0.008 | 128K | 한국어 NLP, 콘텐츠, 균형잡힌 추론 |
+| **GLM-5.1** | HIGH | 문서 기준 placeholder 0 / 0 | 204.8K | 고난도 추론, 전략 수립, 긴 컨텍스트 |
 
 ### 라우팅 매트릭스
 
@@ -131,21 +133,22 @@ bash scripts/bridge.sh gap-fix-start worker-1 gpt-5.4-codex
 |---------|-----|--------|------|
 | 코딩 (일반) | GLM-5-Turbo | GPT-5.4-Codex | GPT-5.4-Codex |
 | 코딩 (아키텍처) | GPT-5.4-Codex | GPT-5.4-Codex | GPT-5.4-Codex |
-| 한국어 NLP | GLM-5-Turbo | GLM-5 | GLM-5 |
-| 추론 | GLM-5-Turbo | GPT-5.4-Codex | GPT-5.4-Codex |
+| 한국어 NLP | GLM-5-Turbo | GLM-5 | GLM-5.1 |
+| 추론 | GLM-5-Turbo | GPT-5.4-Codex | GLM-5.1 |
 | 보안 | GPT-5.4-Codex | GPT-5.4-Codex | GPT-5.4-Codex |
-| 콘텐츠 생성 | GLM-5-Turbo | GLM-5 | GLM-5 |
+| 콘텐츠 생성 | GLM-5-Turbo | GLM-5 | GLM-5.1 |
 
 ### 우선순위 규칙 (first-match)
 
 1. **P100** — 사용자 명시 오버라이드
-2. **P90** — 한국어 비율 >70% + NLP/콘텐츠 → GLM-5
+2. **P90** — 한국어 비율 >70% + NLP/콘텐츠 → GLM-5.1(고난도) / GLM-5(일반)
 3. **P85** — 한국어 비율 >50% + NLP/콘텐츠 → GLM-5-Turbo
 4. **P80** — 고복잡도 아키텍처 → GPT-5.4-Codex
-5. **P70** — 보안 태스크 → GPT-5.4-Codex
-6. **P60** — 중간 이상 코딩/디버깅 → GPT-5.4-Codex
-7. **P50** — 저복잡도 → GLM-5-Turbo (비용 효율)
-8. **P0** — 기본 → GPT-5.4-Codex
+5. **P75** — 고복잡도 추론/한국어 장문 → GLM-5.1
+6. **P70** — 보안 태스크 → GPT-5.4-Codex
+7. **P60** — 중간 이상 코딩/디버깅 → GPT-5.4-Codex
+8. **P50** — 저복잡도 → GLM-5-Turbo (비용 효율)
+9. **P0** — 기본 → GPT-5.4-Codex
 
 ### 복잡도 측정 신호
 
@@ -159,9 +162,9 @@ bash scripts/bridge.sh gap-fix-start worker-1 gpt-5.4-codex
 
 | 용도 | 1순위 | 2순위 | 3순위 |
 |------|-------|-------|-------|
-| 코딩 | GPT-5.4-Codex | GLM-5 | GLM-5-Turbo |
-| 한국어 | GLM-5 | GLM-5-Turbo | GPT-5.4-Codex |
-| 추론 | GPT-5.4-Codex | GLM-5 | GLM-5-Turbo |
+| 코딩 | GPT-5.4-Codex | GLM-5.1 | GLM-5 |
+| 한국어 | GLM-5.1 | GLM-5 | GLM-5-Turbo |
+| 추론 | GLM-5.1 | GPT-5.4-Codex | GLM-5 |
 
 ## 예산 프로파일
 
@@ -181,7 +184,7 @@ bash scripts/bridge.sh gap-fix-start worker-1 gpt-5.4-codex
 | `parallel` | 독립 태스크 2~3개 | Work(병렬) → Review | 3 |
 | `full` | 태스크 4개+ or 의존성 있음 or 고복잡도 | Plan → Work(병렬) → Review | 5 |
 
-**동시 실행:** GPT-5.4-Codex 최대 3개, GLM-5-Turbo 최대 7개 (비용/부하 분산)
+**동시 실행:** GPT-5.4-Codex 최대 3개, GLM-5-Turbo 최대 7개, GLM-5.1은 고비용/고성능 슬롯로 취급 권장
 
 ### 상태 머신
 
@@ -243,7 +246,7 @@ harness/
 
 ## GLM 가입 및 인증
 
-하네스의 저비용 모델인 GLM-5-Turbo, GLM-5를 사용하려면 Z.ai 구독이 필요합니다.
+하네스의 GLM 계열 모델(GLM-5-Turbo, GLM-5, GLM-5.1)을 사용하려면 Z.ai 구독이 필요합니다.
 
 **가입:** https://z.ai/subscribe?ic=OTYO9JPFNV ($10/월, Claude Code/Cline 등 20+ 코딩 툴 지원)
 
@@ -260,6 +263,67 @@ openclaw onboard
 **모델 별칭:**
 - `glm-5-turbo` → `zai/glm-5-turbo` (저비용, 한국어 네이티브)
 - `glm-5` → `zai/glm-5` (한국어 NLP, 균형잡힌 추론)
+- `glm-5.1` → `zai/glm-5.1` (고난도 추론, 긴 컨텍스트)
+
+
+## GLM-5.1 설정 방법 (docs.z.ai/devpack/using5.1 반영)
+
+### 1) OpenClaw 설정에 모델 추가
+
+`~/.openclaw/openclaw.json`에서 Z.ai 모델 목록에 아래 항목을 추가:
+
+```json
+{
+  "id": "glm-5.1",
+  "name": "GLM-5.1",
+  "reasoning": true,
+  "input": ["text"],
+  "cost": { "input": 0, "output": 0, "cacheRead": 0, "cacheWrite": 0 },
+  "contextWindow": 204800,
+  "maxTokens": 131072
+}
+```
+
+그리고 기본 모델/별칭에도 추가:
+
+```json
+{
+  "agents": {
+    "defaults": {
+      "model": {
+        "primary": "zai/glm-5.1",
+        "fallbacks": ["zai/glm-4.7"]
+      },
+      "models": {
+        "zai/glm-5": { "alias": "GLM" },
+        "zai/glm-5.1": {}
+      }
+    }
+  }
+}
+```
+
+변경 후:
+
+```bash
+openclaw gateway restart
+```
+
+### 2) Claude Code에서 GLM-5.1 사용
+
+`~/.claude/settings.json`에 아래 env를 추가/교체:
+
+```json
+{
+  "env": {
+    "ANTHROPIC_DEFAULT_HAIKU_MODEL": "glm-4.5-air",
+    "ANTHROPIC_DEFAULT_SONNET_MODEL": "glm-5.1",
+    "ANTHROPIC_DEFAULT_OPUS_MODEL": "glm-5.1"
+  }
+}
+```
+
+새 터미널에서 `claude` 실행 후 `/status`로 반영 확인.
 
 ## 설치
 

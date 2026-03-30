@@ -61,6 +61,7 @@ HEADER
         name=$(get_field "$agent_file" "name")
         desc=$(get_field "$agent_file" "description")
         tier=$(get_field "$agent_file" "model_tier")
+        tier=$(printf '%s' "$tier" | sed 's/[[:space:]]*#.*$//' | xargs)
         session_type=$(get_nested_field "$agent_file" "session_type")
 
         [[ -z "$name" ]] && continue
@@ -77,6 +78,13 @@ HEADER
 SKILLS_HEADER
 
     # 스킬 스캔
+    if [[ -f "${HARNESS_DIR}/SKILL.md" ]]; then
+        root_name=$(get_field "${HARNESS_DIR}/SKILL.md" "name")
+        root_desc=$(get_field "${HARNESS_DIR}/SKILL.md" "description")
+        [[ -n "$root_name" ]] && echo "| ${root_name} | /${root_name} | ${root_desc} |"
+    fi
+
+    if [[ -d "${SKILLS_DIR}" ]]; then
     for skill_dir in "${SKILLS_DIR}"/*/; do
         [[ -d "$skill_dir" ]] || continue
         skill_file="${skill_dir}SKILL.md"
@@ -92,6 +100,7 @@ SKILLS_HEADER
 
         echo "| ${name} | ${slash:-/${name}} | ${desc} |"
     done
+    fi
 
     cat <<MODELS_HEADER
 
@@ -100,8 +109,9 @@ SKILLS_HEADER
 | 모델 | 프로바이더 | 티어 | 한국어 | 코딩 | 추론 |
 |------|-----------|------|--------|------|------|
 | GLM-5 Turbo | Z.ai | LOW | 95 | 70 | 60 |
-| GPT-5.4 Codex | OpenAI | MEDIUM | 70 | 95 | 90 |
+| GPT-5.3 Codex | OpenAI | MEDIUM | 70 | 95 | 90 |
 | GLM-5 | Z.ai | MEDIUM | 95 | 80 | 80 |
+| GLM-5.1 | Z.ai | HIGH | 96 | 88 | 94 |
 
 ## 사용법
 
@@ -116,5 +126,13 @@ MODELS_HEADER
 } > "${CATALOG_FILE}"
 
 echo "CATALOG.md 생성 완료: ${CATALOG_FILE}"
-echo "  에이전트: $(find "${AGENTS_DIR}" -name "*.md" -maxdepth 1 | wc -l | tr -d ' ')개"
-echo "  스킬: $(find "${SKILLS_DIR}" -name "SKILL.md" | wc -l | tr -d ' ')개"
+agent_count=$(find "${AGENTS_DIR}" -maxdepth 1 -name "*.md" 2>/dev/null | wc -l | tr -d ' ')
+if [[ -d "${SKILLS_DIR}" ]]; then
+    skill_count=$(find "${SKILLS_DIR}" -name "SKILL.md" 2>/dev/null | wc -l | tr -d ' ')
+else
+    skill_count=0
+fi
+[[ -f "${HARNESS_DIR}/SKILL.md" ]] && skill_count=$((skill_count + 1))
+
+echo "  에이전트: ${agent_count}개"
+echo "  스킬: ${skill_count}개"
