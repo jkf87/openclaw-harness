@@ -9,9 +9,10 @@
 - **🔄 Plan→Work→Review 사이클** — Planner가 태스크를 분해하고 Worker가 병렬 구현, Reviewer가 검증
 - **⚡ 갭(Gap) 감지 루프** — AI가 원래 의도에서 벗어난 것을 자동 감지하고 1회 수정 재실행
 - **📡 브릿지 알림** — 에이전트 상태를 실시간으로 텔레그램/디스코드 등 채널에 푸시
-- **🧭 모델 라우팅** — 태스크 복잡도에 따라 적절한 모델 자동 선택 (GLM/GPT/Claude)
-- **🇰🇷 한국어 최적화** — 한국어 감지 시 GLM 자동 라우팅
-- **🆕 GLM-5.1 지원** — 최신 Z.ai 모델을 OpenClaw/Claude Code 설정과 함께 반영
+- **🧭 멀티티어 모델 라우팅** — Z.ai 코딩플랜 **Lite/Pro/Max** 인식, 플랜이 허용한 모델만 자동 선택
+- **🇰🇷 한국어 최적화** — 한국어 감지 시 GLM 시리즈 우선
+- **🆕 GLM-5.1 지원** — Pro/Max 플랜에서 자동 활성
+- **🔌 Codex OAuth 병행 (선택)** — ChatGPT Plus/Pro 구독으로 GPT-5.3 Codex를 고난도 코딩/보안에 오버레이
 
 ## 아키텍처
 
@@ -52,12 +53,12 @@
 
 ## 에이전트
 
-| 에이전트 | 역할 | 권한 | 추천 모델 |
-|---------|------|------|----------|
-| **planner** | 계획 수립 | read-only | glm-5.1 |
-| **worker** | 코드 구현 | read+write+exec | gpt-5.3-codex |
-| **reviewer** | 5관점 리뷰 + 갭 감지 | read-only | glm-5.1 |
-| **debugger** | 체계적 디버깅 | read+exec | glm-5 |
+| 에이전트 | 역할 | 권한 | Lite | Pro | Max | + Codex OAuth |
+|---------|------|------|------|-----|-----|---------------|
+| **planner** | 계획 수립 | read-only | glm-5 | glm-5.1 | glm-5.1 | glm-5.1 |
+| **worker** | 코드 구현 | read+write+exec | glm-5 | glm-5.1 | glm-5.1 | gpt-5.3-codex (HIGH) |
+| **reviewer** | 5관점 리뷰 + 갭 감지 | read-only | glm-5 | glm-5.1 | glm-5.1 | glm-5.1 |
+| **debugger** | 체계적 디버깅 | read+exec | glm-5 | glm-5 | glm-5.1 | gpt-5.3-codex (HIGH) |
 
 ## Reviewer 5관점
 
@@ -95,7 +96,7 @@ bash scripts/bridge.sh phase WORKING
 bash scripts/bridge.sh gap-detected worker-1 scope_creep "알림 자의 추가" "알림 제거"
 
 # 갭 수정 시작
-bash scripts/bridge.sh gap-fix-start worker-1 gpt-5.3-codex
+bash scripts/bridge.sh gap-fix-start worker-1 glm-5.1
 ```
 
 ### 알림 예시
@@ -114,41 +115,68 @@ bash scripts/bridge.sh gap-fix-start worker-1 gpt-5.3-codex
 └── 상태: 3/5
 ```
 
+## Z.ai 코딩플랜 (Lite / Pro / Max)
+
+본 하네스는 Z.ai 코딩플랜 **3개 티어를 모두 인식**하며, 활성 플랜에서 허용한 모델만 라우팅합니다. 가입: https://z.ai/subscribe?ic=OTYO9JPFNV
+
+| 플랜 | 가격 | 사용 가능 모델 | 일일 토큰 | 동시 워커 | full 파이프라인 |
+|------|------|----------------|-----------|-----------|------------------|
+| **Lite** | $3/월 | GLM-5 Turbo, GLM-5 | 1.5M | 2 | ⚠️ 제한 |
+| **Pro**  | $15/월 | + GLM-5.1 | 8M | 4 | ✅ |
+| **Max**  | $30/월 | 풀 모델 + 우선 슬롯 | 25M | 7 | ✅ |
+
+활성 플랜은 `routing/plans.yaml` 의 `active_plan` 또는 환경변수 `ZAI_CODING_PLAN` 으로 지정합니다. 빠른 전환:
+
+```bash
+bash scripts/switch-plan.sh lite
+bash scripts/switch-plan.sh pro
+bash scripts/switch-plan.sh max
+bash scripts/switch-plan.sh pro --with-codex
+```
+
 ## 모델 라우팅
 
-태스크의 **복잡도 × 카테고리** 2D 매트릭스로 자동 모델 선택. Claude/Gemini 제외, GLM/GPT만 사용.
+태스크의 **복잡도 × 카테고리 × 활성 플랜** 3D 매트릭스로 자동 모델 선택. Anthropic Claude / Google Gemini 직접 호출은 사용하지 않습니다.
 
 ### 지원 모델
 
-| 모델 | 티어 | 비용 (in/out per 1k) | 컨텍스트 | 강점 |
-|------|------|---------------------|----------|------|
-| **GLM-5 Turbo** | LOW | $0.0003 / $0.0006 | 128K | 한국어 네이티브, 저비용, 빠른 응답 |
-| **GPT-5.3 Codex** | MEDIUM | $0.003 / $0.015 | 200K | 코드 생성, 디버깅, 아키텍처 |
-| **GLM-5** | MEDIUM | $0.002 / $0.008 | 128K | 한국어 NLP, 콘텐츠, 균형잡힌 추론 |
-| **GLM-5.1** | HIGH | 문서 기준 placeholder 0 / 0 | 204.8K | 고난도 추론, 전략 수립, 긴 컨텍스트 |
+| 모델 | 티어 | 컨텍스트 | 강점 | Lite | Pro | Max |
+|------|------|----------|------|------|-----|-----|
+| **GLM-5 Turbo** | LOW | 128K | 한국어 네이티브, 빠른 응답 | ✅ | ✅ | ✅ |
+| **GLM-5** | MEDIUM | 128K | 한국어 NLP, 균형 추론, 일반 코딩 | ✅ | ✅ | ✅ |
+| **GLM-5.1** | HIGH | 204.8K | 고난도 추론, 코드 리뷰, 아키텍처 | ❌ | ✅ | ✅ |
+| **GPT-5.3 Codex** *(선택)* | HIGH | 200K | 코드 생성, 디버깅, 보안 감사 | OAuth | OAuth | OAuth |
 
-### 라우팅 매트릭스
+> 💡 GPT-5.3 Codex는 ChatGPT Plus/Pro 구독을 보유한 경우 **Codex OAuth** 로 무료 병행 사용이 가능합니다 (자세한 내용은 [docs/zai-coding-plan.md](docs/zai-coding-plan.md)).
+
+### 라우팅 매트릭스 (Pro 기준)
 
 | 카테고리 | LOW | MEDIUM | HIGH |
 |---------|-----|--------|------|
-| 코딩 (일반) | GLM-5 Turbo | GPT-5.3 Codex | GPT-5.3 Codex |
-| 코딩 (아키텍처) | GPT-5.3 Codex | GPT-5.3 Codex | GPT-5.3 Codex |
+| 코딩 (일반) | GLM-5 Turbo | GLM-5 | GLM-5.1 |
+| 코딩 (아키텍처) | GLM-5 | GLM-5.1 | GLM-5.1 |
 | 한국어 NLP | GLM-5 Turbo | GLM-5 | GLM-5.1 |
-| 추론 | GLM-5 Turbo | GPT-5.3 Codex | GLM-5.1 |
-| 보안 | GPT-5.3 Codex | GPT-5.3 Codex | GPT-5.3 Codex |
+| 추론 | GLM-5 Turbo | GLM-5 | GLM-5.1 |
+| 디버깅 | GLM-5 Turbo | GLM-5 | GLM-5.1 |
+| 보안 | GLM-5 | GLM-5.1 | GLM-5.1 |
 | 콘텐츠 생성 | GLM-5 Turbo | GLM-5 | GLM-5.1 |
+
+**Lite 플랜**: HIGH 슬롯이 모두 GLM-5로 자동 강등됩니다.
+**Max 플랜**: MEDIUM 코딩/리뷰도 적극적으로 GLM-5.1을 사용합니다.
+**Codex OAuth 활성**: 코딩(아키텍처/일반 HIGH), 디버깅(HIGH), 보안(MEDIUM/HIGH)이 GPT-5.3 Codex로 오버레이됩니다.
 
 ### 우선순위 규칙 (first-match)
 
 1. **P100** — 사용자 명시 오버라이드
-2. **P90** — 한국어 비율 >70% + NLP/콘텐츠 → GLM-5.1(고난도) / GLM-5(일반)
-3. **P85** — 한국어 비율 >50% + NLP/콘텐츠 → GLM-5 Turbo
-4. **P80** — 고복잡도 아키텍처 → GPT-5.3 Codex
-5. **P75** — 고복잡도 추론/한국어 장문 → GLM-5.1
-6. **P70** — 보안 태스크 → GPT-5.3 Codex
-7. **P60** — 중간 이상 코딩/디버깅 → GPT-5.3 Codex
-8. **P50** — 저복잡도 → GLM-5 Turbo (비용 효율)
-9. **P0** — 기본 → GPT-5.3 Codex
+2. **P95** — 활성 플랜 미허용 모델 자동 강등 (예: Lite의 glm-5.1 → glm-5)
+3. **P90** — 한국어 비율 >70% + NLP/콘텐츠 → GLM 시리즈 우선
+4. **P85** — 한국어 혼합(>50%) → GLM-5
+5. **P80** — Codex OAuth 활성 + 고난도 아키텍처/보안 → GPT-5.3 Codex
+6. **P75** — Pro/Max + HIGH 복잡도 → GLM-5.1
+7. **P70** — Lite + HIGH 복잡도 → GLM-5 (상한)
+8. **P60** — 표준 코딩/디버깅 → GLM-5
+9. **P50** — 저복잡도 → GLM-5 Turbo
+10. **P0** — 기본 → GLM-5
 
 ### 복잡도 측정 신호
 
@@ -158,23 +186,27 @@ bash scripts/bridge.sh gap-fix-start worker-1 gpt-5.3-codex
 
 **컨텍스트 신호:** 이전 실패 횟수, 대화 턴 수, 계획 단계 수
 
-### 폴백 체인
+### 폴백 체인 (플랜별)
 
-| 용도 | 1순위 | 2순위 | 3순위 |
-|------|-------|-------|-------|
-| 코딩 | GPT-5.3 Codex | GLM-5.1 | GLM-5 |
-| 한국어 | GLM-5.1 | GLM-5 | GLM-5 Turbo |
-| 추론 | GLM-5.1 | GPT-5.3 Codex | GLM-5 |
+| 용도 | Lite | Pro / Max | + Codex OAuth |
+|------|------|-----------|----------------|
+| 코딩 | glm-5 → glm-5-turbo | glm-5.1 → glm-5 → glm-5-turbo | gpt-5.3-codex → glm-5.1 → glm-5 |
+| 한국어 | glm-5 → glm-5-turbo | glm-5.1 → glm-5 → glm-5-turbo | (동일) |
+| 추론 | glm-5 → glm-5-turbo | glm-5.1 → glm-5 → glm-5-turbo | (동일) |
+| 보안 | glm-5 | glm-5.1 → glm-5 | gpt-5.3-codex → glm-5.1 |
 
-## 예산 프로파일
+## 예산 프로파일 (코딩플랜 정액제 기반)
 
-| 프로파일 | 일일 토큰 | 태스크당 | 비용 한도 | 용도 |
-|---------|----------|---------|----------|------|
-| `minimal` | 500K | 30K | $1/일 | 개인/학습 |
-| `standard` | 2M | 100K | $10/일 | 팀/프로덕션 |
-| `full` | 무제한 | 500K | 무제한 | 엔터프라이즈 |
+Z.ai 코딩플랜은 정액제이므로 비용 대신 **토큰/요청 quota**를 관리합니다. 각 프로파일은 코딩플랜 티어와 1:1 매핑됩니다.
 
-**예산 초과 정책:** 80% 경고 → 95% GLM-5 Turbo 강제 다운그레이드 → 100% 신규 태스크 차단
+| 프로파일 | 플랜 | 일일 토큰 | 태스크당 | 일일 요청 | 동시 워커 |
+|---------|------|-----------|----------|-----------|-----------|
+| `lite` | Lite ($3) | 1.5M | 60K | 600 | 2 |
+| `pro`  | Pro ($15) | 8M | 200K | 3,000 | 4 |
+| `max`  | Max ($30) | 25M | 500K | 12,000 | 7 |
+| `codex_oauth_addon` | (Codex 병행) | — | — | 1,500 | 3 |
+
+**Quota 초과 정책:** 80% 경고 → 95% GLM-5 Turbo 강등 + Reviewer를 GLM-5로 강등 → 100% 신규 태스크 차단 (Codex OAuth 활성 시 자동 페일오버)
 
 ## 파이프라인 모드
 
@@ -184,7 +216,7 @@ bash scripts/bridge.sh gap-fix-start worker-1 gpt-5.3-codex
 | `parallel` | 독립 태스크 2~3개 | Work(병렬) → Review | 3 |
 | `full` | 태스크 4개+ or 의존성 있음 or 고복잡도 | Plan → Work(병렬) → Review | 5 |
 
-**동시 실행:** GPT-5.3 Codex 최대 3개, GLM-5 Turbo 최대 7개, GLM-5.1은 고비용/고성능 슬롯로 취급 권장
+**동시 실행:** 활성 플랜 기준 — Lite 2 / Pro 4 / Max 7. 모델별 추가 상한은 GLM-5-turbo 7, GLM-5 5, GLM-5.1 3, GPT-5.3 Codex 3 (min 적용).
 
 ### 상태 머신
 
@@ -244,86 +276,42 @@ harness/
 └── state/                     #   런타임 상태 (git-ignored)
 ```
 
-## GLM 가입 및 인증
+## 가입 / 인증 / Claude Code 연동
 
-하네스의 GLM 계열 모델(GLM-5 Turbo, GLM-5, GLM-5.1)을 사용하려면 Z.ai 구독이 필요합니다.
+전체 셋업 절차(플랜 선택, OAuth, Claude Code env, Codex 병행)는 **[docs/zai-coding-plan.md](docs/zai-coding-plan.md)** 에 정리되어 있습니다.
 
-**가입:** https://z.ai/subscribe?ic=OTYO9JPFNV ($10/월, Claude Code/Cline 등 20+ 코딩 툴 지원)
-
-**인증 방법 (OAuth):**
-```bash
-# 1. OpenClaw 온보드 실행
-openclaw onboard
-
-# 2. 프로바이더에서 "Z.ai Coding Plan" 선택
-
-# 3. OAuth 인증 완료 후 API 키 발급 → 붙여넣기
-```
-
-**모델 별칭:**
-- `glm-5-turbo` → `zai/glm-5-turbo` (저비용, 한국어 네이티브)
-- `glm-5` → `zai/glm-5` (한국어 NLP, 균형잡힌 추론)
-- `glm-5.1` → `zai/glm-5.1` (고난도 추론, 긴 컨텍스트)
-
-
-## GLM-5.1 설정 방법 (docs.z.ai/devpack/using5.1 반영)
-
-### 1) OpenClaw 설정에 모델 추가
-
-`~/.openclaw/openclaw.json`에서 Z.ai 모델 목록에 아래 항목을 추가:
-
-```json
-{
-  "id": "glm-5.1",
-  "name": "GLM-5.1",
-  "reasoning": true,
-  "input": ["text"],
-  "cost": { "input": 0, "output": 0, "cacheRead": 0, "cacheWrite": 0 },
-  "contextWindow": 204800,
-  "maxTokens": 131072
-}
-```
-
-그리고 기본 모델/별칭에도 추가:
-
-```json
-{
-  "agents": {
-    "defaults": {
-      "model": {
-        "primary": "zai/glm-5.1",
-        "fallbacks": ["zai/glm-4.7"]
-      },
-      "models": {
-        "zai/glm-5": { "alias": "GLM" },
-        "zai/glm-5.1": {}
-      }
-    }
-  }
-}
-```
-
-변경 후:
+핵심 요약:
 
 ```bash
-openclaw gateway restart
+# 1) Z.ai 코딩플랜 가입 (Lite $3 / Pro $15 / Max $30)
+open https://z.ai/subscribe?ic=OTYO9JPFNV
+
+# 2) OAuth 인증
+openclaw onboard          # → "Z.ai Coding Plan" 선택
+
+# 3) 활성 플랜 지정
+bash scripts/switch-plan.sh pro
+
+# 4) (선택) Codex OAuth 병행
+codex login
+bash scripts/switch-plan.sh pro --with-codex
 ```
 
-### 2) Claude Code에서 GLM-5.1 사용
-
-`~/.claude/settings.json`에 아래 env를 추가/교체:
+Claude Code `~/.claude/settings.json` (Pro 기준):
 
 ```json
 {
   "env": {
-    "ANTHROPIC_DEFAULT_HAIKU_MODEL": "glm-4.5-air",
-    "ANTHROPIC_DEFAULT_SONNET_MODEL": "glm-5.1",
+    "ANTHROPIC_BASE_URL": "https://api.z.ai/api/anthropic",
+    "ANTHROPIC_AUTH_TOKEN": "zai_xxx...",
+    "ANTHROPIC_DEFAULT_HAIKU_MODEL": "glm-5-turbo",
+    "ANTHROPIC_DEFAULT_SONNET_MODEL": "glm-5",
     "ANTHROPIC_DEFAULT_OPUS_MODEL": "glm-5.1"
   }
 }
 ```
 
-새 터미널에서 `claude` 실행 후 `/status`로 반영 확인.
+> ⚠️ **Lite 플랜**: `OPUS_MODEL` 을 `glm-5` 로 변경 (GLM-5.1 미포함).
 
 ## 설치
 

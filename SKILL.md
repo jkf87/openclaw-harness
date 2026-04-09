@@ -18,13 +18,15 @@ bash ~/.openclaw/skills/harness/scripts/route-task.sh "태스크 설명"
 ### 2. 단일 에이전트 스폰
 에이전트 프롬프트를 읽어서 `sessions_spawn`에 전달:
 
-| 에이전트 | 역할 | 권한 | 추천 모델 |
-|---------|------|------|----------|
-| planner | 계획 수립 (읽기 전용) | read-only | glm-5.1 |
-| worker | 코드 구현 | read+write+exec | gpt-5.3-codex |
-| reviewer | 4관점 리뷰 (읽기 전용) | read-only | glm-5.1 |
-| debugger | 체계적 디버깅 | read+exec | glm-5-turbo |
-| **bridge** | **상태 추적 + 채널 알림** | read+write | glm-5-turbo |
+| 에이전트 | 역할 | 권한 | Lite | Pro / Max |
+|---------|------|------|------|-----------|
+| planner | 계획 수립 (읽기 전용) | read-only | glm-5 | glm-5.1 |
+| worker | 코드 구현 | read+write+exec | glm-5 | glm-5.1 |
+| reviewer | 5관점 리뷰 + 갭 감지 (읽기 전용) | read-only | glm-5 | glm-5.1 |
+| debugger | 체계적 디버깅 | read+exec | glm-5-turbo | glm-5 |
+| **bridge** | **상태 추적 + 채널 알림** | read+write | glm-5-turbo | glm-5-turbo |
+
+> Codex OAuth 활성 시 worker/debugger의 HIGH 슬롯은 `gpt-5.3-codex` 로 자동 오버레이됩니다.
 
 ### 3. Full 사이클 (브릿지 자동 활성화)
 Plan→Work→Review 전체 실행 (v2: 갭 루프 포함):
@@ -80,7 +82,7 @@ bash ~/.openclaw/skills/harness/scripts/bridge.sh phase WORKING
 
 # 성공 배치 (X3, X4)
 ✅ [harness] 2/3 완료 (67%)
-├── worker-1: API 구현 (gpt-5.3-codex, 120s)
+├── worker-1: API 구현 (glm-5.1, 120s)
 ├── worker-2: 테스트 작성 (glm-5-turbo, 45s)
 └── 예상 잔여: ~60초
 
@@ -128,22 +130,25 @@ $BRIDGE batch                        # 성공 배치 알림 전송
 $BRIDGE bridge-error <에러>          # 브릿지 장애 기록 (3회→에스컬레이션)
 ```
 
-## 모델 라우팅
+## 모델 라우팅 (Z.ai 코딩플랜 멀티티어)
 
-복잡도 × 카테고리 2D 매트릭스:
+복잡도 × 카테고리 × 활성 플랜 매트릭스 (Pro 기준):
 
 | 카테고리 | LOW (0-4) | MEDIUM (5-9) | HIGH (10+) |
 |---------|-----------|-------------|------------|
-| 코딩 일반 | glm-5-turbo | gpt-5.3-codex | gpt-5.3-codex |
-| 아키텍처 | gpt-5.3-codex | gpt-5.3-codex | gpt-5.3-codex |
+| 코딩 일반 | glm-5-turbo | glm-5 | glm-5.1 |
+| 아키텍처 | glm-5 | glm-5.1 | glm-5.1 |
 | 한국어 NLP | glm-5-turbo | glm-5 | glm-5.1 |
-| 디버깅 | glm-5-turbo | gpt-5.3-codex | gpt-5.3-codex |
-| 보안 | gpt-5.3-codex | gpt-5.3-codex | gpt-5.3-codex |
+| 디버깅 | glm-5-turbo | glm-5 | glm-5.1 |
+| 보안 | glm-5 | glm-5.1 | glm-5.1 |
 | 콘텐츠 | glm-5-turbo | glm-5 | glm-5.1 |
 
-한국어 비율 > 70% → GLM 계열 자동 우선
+- **Lite 플랜**: HIGH 슬롯이 모두 `glm-5` 로 강등 (GLM-5.1 미포함)
+- **Max 플랜**: MEDIUM 코딩/리뷰도 적극적으로 `glm-5.1` 사용
+- **Codex OAuth 활성**: 코딩(아키텍처/일반 HIGH), 디버깅(HIGH), 보안(MEDIUM/HIGH)이 `gpt-5.3-codex` 로 오버레이
+- 한국어 비율 > 70% → GLM 계열 자동 우선
 
-**B1/B2: 모델 제약 없음** — GLM, GPT, Claude 모두 동일한 브릿지 기능 사용.
+자세한 내용: [docs/zai-coding-plan.md](docs/zai-coding-plan.md)
 
 ## 에이전트 스폰 방법
 

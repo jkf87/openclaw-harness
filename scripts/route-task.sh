@@ -207,78 +207,136 @@ detect_category() {
 # ──────────────────────────────────────────────
 # 모델 결정
 # ──────────────────────────────────────────────
+# 활성 플랜 / Codex OAuth 토글 (env > plans.yaml > 기본값)
+detect_active_plan() {
+    if [[ -n "${ZAI_CODING_PLAN:-}" ]]; then
+        echo "$ZAI_CODING_PLAN"
+        return
+    fi
+    local plans_file
+    plans_file="$(cd "$(dirname "$0")/.." && pwd)/routing/plans.yaml"
+    if [[ -f "$plans_file" ]]; then
+        awk '/^active_plan:/ { print $2; exit }' "$plans_file" 2>/dev/null || echo "pro"
+    else
+        echo "pro"
+    fi
+}
+
+detect_codex_enabled() {
+    if [[ "${CODEX_OAUTH_ENABLED:-}" == "true" ]]; then
+        echo "true"
+        return
+    fi
+    local plans_file
+    plans_file="$(cd "$(dirname "$0")/.." && pwd)/routing/plans.yaml"
+    if [[ -f "$plans_file" ]]; then
+        awk '/^codex_oauth_enabled:/ { print $2; exit }' "$plans_file" 2>/dev/null || echo "false"
+    else
+        echo "false"
+    fi
+}
+
+# Lite 플랜 모델 강등
+cap_for_lite() {
+    case "$1" in
+        glm-5.1) echo "glm-5" ;;
+        *)       echo "$1" ;;
+    esac
+}
+
 resolve_model() {
     local category="$1"
     local tier="$2"
     local korean_ratio="$3"
+    local plan codex_enabled
+    plan="$(detect_active_plan)"
+    codex_enabled="$(detect_codex_enabled)"
 
-    # 한국어 비율 높고 NLP/콘텐츠 태스크 → GLM 계열
-    if awk "BEGIN { exit !($korean_ratio > 0.7) }"; then
+    local picked=""
+
+    # ── Codex OAuth 오버레이 (활성화 시 최우선) ──
+    if [[ "$codex_enabled" == "true" ]]; then
+        case "${category}_${tier}" in
+            coding_arch_HIGH|coding_arch_MEDIUM) picked="gpt-5.3-codex" ;;
+            coding_general_HIGH)                 picked="gpt-5.3-codex" ;;
+            debugging_HIGH)                      picked="gpt-5.3-codex" ;;
+            security_HIGH|security_MEDIUM)       picked="gpt-5.3-codex" ;;
+        esac
+    fi
+
+    # ── 한국어 우선 (NLP/콘텐츠) ──
+    if [[ -z "$picked" ]] && awk "BEGIN { exit !($korean_ratio > 0.7) }"; then
         case "$category" in
             korean_nlp|content_creation)
-                if [[ "$tier" == "HIGH" ]]; then
-                    echo "glm-5.1"
-                else
-                    echo "glm-5"
-                fi
-                return
+                if [[ "$tier" == "HIGH" ]]; then picked="glm-5.1"; else picked="glm-5"; fi
                 ;;
         esac
     fi
 
-    if awk "BEGIN { exit !($korean_ratio > 0.5) }"; then
+    if [[ -z "$picked" ]] && awk "BEGIN { exit !($korean_ratio > 0.5) }"; then
         case "$category" in
             korean_nlp|content_creation)
-                if [[ "$tier" == "LOW" ]]; then
-                    echo "glm-5-turbo"
-                else
-                    echo "glm-5"
-                fi
-                return
+                if [[ "$tier" == "LOW" ]]; then picked="glm-5-turbo"; else picked="glm-5"; fi
                 ;;
         esac
     fi
 
-    # 카테고리 × 복잡도 매트릭스
-    case "${category}_${tier}" in
-        coding_general_LOW)     echo "glm-5-turbo" ;;
-        coding_general_MEDIUM)  echo "gpt-5.3-codex" ;;
-        coding_general_HIGH)    echo "gpt-5.3-codex" ;;
+    # ── 플랜별 매트릭스 ──
+    if [[ -z "$picked" ]]; then
+        case "$plan" in
+            lite)
+                case "${category}_${tier}" in
+                    *_LOW)              picked="glm-5-turbo" ;;
+                    coding_arch_*)      picked="glm-5" ;;
+                    security_*)         picked="glm-5" ;;
+                    *_MEDIUM|*_HIGH)    picked="glm-5" ;;
+                    *)                  picked="glm-5" ;;
+                esac
+                ;;
+            max)
+                case "${category}_${tier}" in
+                    *_LOW)
+                        case "$category" in
+                            coding_arch|security|reasoning|data_analysis) picked="glm-5" ;;
+                            *) picked="glm-5-turbo" ;;
+                        esac
+                        ;;
+                    coding_general_MEDIUM|coding_general_HIGH) picked="glm-5.1" ;;
+                    coding_arch_*)      picked="glm-5.1" ;;
+                    security_*)         picked="glm-5.1" ;;
+                    reasoning_MEDIUM|reasoning_HIGH) picked="glm-5.1" ;;
+                    debugging_MEDIUM|debugging_HIGH) picked="glm-5.1" ;;
+                    data_analysis_*)    picked="glm-5.1" ;;
+                    *_HIGH)             picked="glm-5.1" ;;
+                    *_MEDIUM)           picked="glm-5" ;;
+                    *)                  picked="glm-5" ;;
+                esac
+                ;;
+            pro|*)
+                case "${category}_${tier}" in
+                    *_LOW)
+                        case "$category" in
+                            coding_arch|security) picked="glm-5" ;;
+                            *) picked="glm-5-turbo" ;;
+                        esac
+                        ;;
+                    coding_arch_MEDIUM|coding_arch_HIGH) picked="glm-5.1" ;;
+                    security_MEDIUM|security_HIGH)       picked="glm-5.1" ;;
+                    *_HIGH)              picked="glm-5.1" ;;
+                    *_MEDIUM)            picked="glm-5" ;;
+                    *)                   picked="glm-5" ;;
+                esac
+                ;;
+        esac
+    fi
 
-        coding_arch_LOW)        echo "gpt-5.3-codex" ;;
-        coding_arch_MEDIUM)     echo "gpt-5.3-codex" ;;
-        coding_arch_HIGH)       echo "gpt-5.3-codex" ;;
+    # ── Lite 플랜 강등 (glm-5.1 → glm-5) ──
+    if [[ "$plan" == "lite" ]]; then
+        picked="$(cap_for_lite "$picked")"
+    fi
 
-        korean_nlp_LOW)         echo "glm-5-turbo" ;;
-        korean_nlp_MEDIUM)      echo "glm-5" ;;
-        korean_nlp_HIGH)        echo "glm-5.1" ;;
-
-        reasoning_LOW)          echo "glm-5-turbo" ;;
-        reasoning_MEDIUM)       echo "gpt-5.3-codex" ;;
-        reasoning_HIGH)         echo "glm-5.1" ;;
-
-        debugging_LOW)          echo "glm-5-turbo" ;;
-        debugging_MEDIUM)       echo "gpt-5.3-codex" ;;
-        debugging_HIGH)         echo "gpt-5.3-codex" ;;
-
-        reasoning_LOW)          echo "glm-5-turbo" ;;
-        reasoning_MEDIUM)       echo "gpt-5.3-codex" ;;
-        reasoning_HIGH)         echo "glm-5.1" ;;
-
-        content_creation_LOW)   echo "glm-5-turbo" ;;
-        content_creation_MEDIUM) echo "glm-5" ;;
-        content_creation_HIGH)  echo "glm-5.1" ;;
-
-        data_analysis_LOW)      echo "glm-5-turbo" ;;
-        data_analysis_MEDIUM)   echo "gpt-5.3-codex" ;;
-        data_analysis_HIGH)     echo "gpt-5.3-codex" ;;
-
-        security_LOW)           echo "gpt-5.3-codex" ;;
-        security_MEDIUM)        echo "gpt-5.3-codex" ;;
-        security_HIGH)          echo "gpt-5.3-codex" ;;
-
-        *)                      echo "gpt-5.3-codex" ;;
-    esac
+    [[ -z "$picked" ]] && picked="glm-5"
+    echo "$picked"
 }
 
 # ──────────────────────────────────────────────
@@ -287,19 +345,36 @@ resolve_model() {
 get_fallback_chain() {
     local category="$1"
     local primary="$2"
+    local plan codex_enabled
+    plan="$(detect_active_plan)"
+    codex_enabled="$(detect_codex_enabled)"
     local raw_chain=""
 
-    case "$category" in
-        coding_general|coding_arch|debugging|security|data_analysis|reasoning)
-            raw_chain="${primary},glm-5.1,glm-5,glm-5-turbo"
-            ;;
-        korean_nlp|content_creation)
-            raw_chain="${primary},glm-5,glm-5-turbo,gpt-5.3-codex"
-            ;;
-        *)
-            raw_chain="${primary},glm-5.1,glm-5,glm-5-turbo"
-            ;;
-    esac
+    if [[ "$plan" == "lite" ]]; then
+        # Lite: glm-5.1 사용 불가
+        raw_chain="${primary},glm-5,glm-5-turbo"
+    elif [[ "$codex_enabled" == "true" ]]; then
+        case "$category" in
+            coding_arch|coding_general|debugging|security)
+                raw_chain="${primary},gpt-5.3-codex,glm-5.1,glm-5,glm-5-turbo"
+                ;;
+            *)
+                raw_chain="${primary},glm-5.1,glm-5,glm-5-turbo"
+                ;;
+        esac
+    else
+        case "$category" in
+            coding_general|coding_arch|debugging|security|data_analysis|reasoning)
+                raw_chain="${primary},glm-5.1,glm-5,glm-5-turbo"
+                ;;
+            korean_nlp|content_creation)
+                raw_chain="${primary},glm-5.1,glm-5,glm-5-turbo"
+                ;;
+            *)
+                raw_chain="${primary},glm-5.1,glm-5,glm-5-turbo"
+                ;;
+        esac
+    fi
 
     local item
     local deduped=""

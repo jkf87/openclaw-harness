@@ -1,70 +1,80 @@
 # OpenClaw 하네스 — 예산 프로파일
-# 프로바이더 횡단 토큰 예산 관리
-version: "1.0"
+# Z.ai 코딩플랜은 정액제이므로 비용보다 "토큰/요청 수 quota"를 우선 관리.
+# Codex OAuth는 ChatGPT 구독 rate limit에 따라 보수적 운영.
+version: "2.0-zai-multitier"
 
 # ──────────────────────────────────────────────
-# 예산 프로파일
+# 코딩플랜 티어와 1:1 매핑된 예산 프로파일
 # ──────────────────────────────────────────────
 budget_profiles:
-  minimal:
-    description: "개인/학습용 — 비용 최소화"
-    daily_limit: 500000             # 토큰
-    session_limit: 100000
-    task_limit: 30000
-    preferred_tier: LOW             # 가능하면 저렴한 모델 우선
-    cost_daily_limit: 1.00          # USD
+  lite:
+    description: "Z.ai 코딩플랜 Lite ($3/월) — 개인/학습"
+    plan: lite
+    daily_token_limit: 1500000
+    session_token_limit: 300000
+    task_token_limit: 60000
+    daily_request_limit: 600
+    preferred_tier: LOW
+    cost_daily_limit: null            # 정액제
 
-  standard:
-    description: "팀/프로덕션 — 균형 잡힌 비용"
-    daily_limit: 2000000
-    session_limit: 500000
-    task_limit: 100000
-    preferred_tier: null            # 복잡도 기반 자동 선택
-    cost_daily_limit: 10.00
+  pro:
+    description: "Z.ai 코딩플랜 Pro ($15/월) — 표준/소규모 팀"
+    plan: pro
+    daily_token_limit: 8000000
+    session_token_limit: 1500000
+    task_token_limit: 200000
+    daily_request_limit: 3000
+    preferred_tier: null              # 자동 선택
+    cost_daily_limit: null
 
-  full:
-    description: "무제한/엔터프라이즈 — 성능 우선"
-    daily_limit: null               # 무제한
-    session_limit: 2000000
-    task_limit: 500000
+  max:
+    description: "Z.ai 코딩플랜 Max ($30/월) — 헤비/팀"
+    plan: max
+    daily_token_limit: 25000000
+    session_token_limit: 5000000
+    task_token_limit: 500000
+    daily_request_limit: 12000
     preferred_tier: null
     cost_daily_limit: null
 
+  # Codex OAuth 보조 프로파일 (Z.ai 풀과 함께 사용)
+  codex_oauth_addon:
+    description: "Codex OAuth 병행 — ChatGPT Plus/Pro rate limit 보호"
+    plan: oauth
+    daily_request_limit: 1500         # Plus 기준 보수적
+    session_request_limit: 300
+    preferred_tier: HIGH              # Codex는 고난도에만 사용
+
 # ──────────────────────────────────────────────
-# 예산 초과 처리 전략
+# 예산 초과 처리 정책
 # ──────────────────────────────────────────────
 budget_policy:
-  warning_threshold: 0.80          # 80% 도달 → 경고
-  downgrade_threshold: 0.95        # 95% 도달 → LOW 티어 강제
-  block_threshold: 1.00            # 100% 도달 → 새 태스크 차단
+  warning_threshold: 0.80
+  downgrade_threshold: 0.95
+  block_threshold: 1.00
 
   actions:
     at_warning:
       - "경고 메시지 출력"
       - "가능하면 한 단계 낮은 모델로 전환"
+      - "Codex OAuth 활성 시 일부 코딩 태스크를 Codex로 분산"
 
     at_downgrade:
       - "LOW 티어 모델 강제 (glm-5-turbo)"
-      - "사용자에게 예산 경고 알림"
+      - "Reviewer를 glm-5로 강등"
+      - "사용자에게 quota 경고 알림"
 
     at_block:
       - "새 태스크 차단"
-      - "현재 진행 중인 태스크만 완료 허용"
-      - "사용자에게 예산 소진 알림"
+      - "현재 진행 중 태스크만 완료 허용"
+      - "Codex OAuth 풀로 자동 페일오버 (활성화된 경우)"
+      - "사용자에게 quota 소진 알림"
 
 # ──────────────────────────────────────────────
-# 모델별 비용 참조 (models.yaml과 동기화)
+# 모델별 비용 참조 (정액제이므로 0)
 # ──────────────────────────────────────────────
 cost_reference:
-  glm-5-turbo:
-    input_per_1k: 0.0003
-    output_per_1k: 0.0006
-  gpt-5.3-codex:
-    input_per_1k: 0.003
-    output_per_1k: 0.015
-  glm-5:
-    input_per_1k: 0.002
-    output_per_1k: 0.008
-  glm-5.1:
-    input_per_1k: 0
-    output_per_1k: 0
+  glm-5-turbo:    { input_per_1k: 0, output_per_1k: 0, billing: zai_subscription }
+  glm-5:          { input_per_1k: 0, output_per_1k: 0, billing: zai_subscription }
+  glm-5.1:        { input_per_1k: 0, output_per_1k: 0, billing: zai_subscription }
+  gpt-5.3-codex:  { input_per_1k: 0, output_per_1k: 0, billing: chatgpt_subscription }

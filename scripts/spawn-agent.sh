@@ -70,11 +70,22 @@ MAX_TOKENS="${MAX_TOKENS:-32000}"
 
 default_model_for_tier() {
     local tier="$1"
+    # Z.ai 코딩플랜 활성 플랜 감지 (env > plans.yaml > pro)
+    local plan="${ZAI_CODING_PLAN:-}"
+    if [[ -z "$plan" ]] && [[ -f "${HARNESS_DIR:-$(cd "$(dirname "$0")/.." && pwd)}/routing/plans.yaml" ]]; then
+        plan=$(awk '/^active_plan:/ { print $2; exit }' "${HARNESS_DIR:-$(cd "$(dirname "$0")/.." && pwd)}/routing/plans.yaml" 2>/dev/null)
+    fi
+    plan="${plan:-pro}"
+
     case "$tier" in
         LOW)    echo "glm-5-turbo" ;;
-        MEDIUM) echo "gpt-5.3-codex" ;;
-        HIGH)   echo "glm-5.1" ;;
-        *)      echo "gpt-5.3-codex" ;;
+        MEDIUM)
+            if [[ "$plan" == "lite" ]]; then echo "glm-5"; else echo "glm-5"; fi
+            ;;
+        HIGH)
+            if [[ "$plan" == "lite" ]]; then echo "glm-5"; else echo "glm-5.1"; fi
+            ;;
+        *)      echo "glm-5" ;;
     esac
 }
 

@@ -1,0 +1,124 @@
+# OpenClaw 하네스 — Z.ai 코딩플랜 티어 정의
+# 활성 플랜은 ZAI_CODING_PLAN 환경변수 또는 본 파일의 active_plan 으로 지정.
+#
+# 가입: https://z.ai/subscribe?ic=OTYO9JPFNV
+version: "1.0"
+
+# ──────────────────────────────────────────────
+# 현재 활성 플랜 (사용자가 지정)
+# ──────────────────────────────────────────────
+active_plan: pro                       # lite | pro | max
+codex_oauth_enabled: false             # true면 Codex OAuth도 함께 사용
+
+# ──────────────────────────────────────────────
+# 플랜 정의
+# ──────────────────────────────────────────────
+plans:
+  # ════════════════════════════════════════════
+  # LITE — $3/월 입문/개인
+  # ════════════════════════════════════════════
+  lite:
+    price_usd_month: 3
+    target_user: "개인 개발자, 학습, 사이드 프로젝트"
+    allowed_models:
+      - glm-5-turbo
+      - glm-5
+    blocked_models:
+      - glm-5.1                       # ⚠️ Lite 미포함
+    quota:
+      daily_tokens: 1500000
+      session_tokens: 300000
+      task_tokens: 60000
+      daily_requests: 600
+    concurrency:
+      max_workers: 2
+      max_total_sessions: 3
+    pipeline_modes: [solo, parallel]  # full 모드 비권장 (워커 부족)
+    routing_overrides:
+      # HIGH 복잡도 코딩이라도 GLM-5로 강등
+      coding_arch_HIGH: glm-5
+      reasoning_HIGH: glm-5
+    fix_loop_max_iterations: 2        # 비용 절약
+    notes:
+      - "Reviewer는 glm-5로 동작 (GLM-5.1 미사용)"
+      - "복잡 태스크는 Pro 업그레이드 권장"
+
+  # ════════════════════════════════════════════
+  # PRO — $15/월 표준
+  # ════════════════════════════════════════════
+  pro:
+    price_usd_month: 15
+    target_user: "프로 개발자, 소규모 팀, 일상 프로덕션 작업"
+    allowed_models:
+      - glm-5-turbo
+      - glm-5
+      - glm-5.1
+    blocked_models: []
+    quota:
+      daily_tokens: 8000000
+      session_tokens: 1500000
+      task_tokens: 200000
+      daily_requests: 3000
+    concurrency:
+      max_workers: 4
+      max_total_sessions: 6
+    pipeline_modes: [solo, parallel, full]
+    routing_overrides: {}
+    fix_loop_max_iterations: 3
+    notes:
+      - "GLM-5.1을 Reviewer/Planner/HIGH 코딩에 권장"
+      - "대부분 사용자의 기본 추천 플랜"
+
+  # ════════════════════════════════════════════
+  # MAX — $30/월 헤비/팀
+  # ════════════════════════════════════════════
+  max:
+    price_usd_month: 30
+    target_user: "팀, 헤비 유저, 대규모 자동화/오케스트레이션"
+    allowed_models:
+      - glm-5-turbo
+      - glm-5
+      - glm-5.1
+    blocked_models: []
+    quota:
+      daily_tokens: 25000000
+      session_tokens: 5000000
+      task_tokens: 500000
+      daily_requests: 12000
+    concurrency:
+      max_workers: 7
+      max_total_sessions: 12
+    priority_slot: true               # Z.ai 측 우선 라우팅
+    pipeline_modes: [solo, parallel, full]
+    routing_overrides:
+      # 복잡 태스크는 즉시 GLM-5.1로
+      reasoning_MEDIUM: glm-5.1
+    fix_loop_max_iterations: 4
+    notes:
+      - "고복잡도 태스크는 항상 GLM-5.1 사용"
+      - "Codex OAuth와 병행 시 워커 풀 분산 효과 최대"
+
+# ──────────────────────────────────────────────
+# Codex OAuth 병행 설정 (선택)
+# ──────────────────────────────────────────────
+codex_oauth:
+  description: "ChatGPT Plus($20)/Pro($200) 구독 보유 시 Codex CLI OAuth로 GPT-5.3 Codex 사용"
+  setup:
+    - "1) `codex login` 실행 (~/.codex 또는 CODEX_HOME)"
+    - "2) routing/accounts.yaml 의 codex 풀에 codex_home 등록"
+    - "3) 본 파일 codex_oauth_enabled: true"
+  routing_priority:
+    # Codex OAuth 활성 시 코딩/보안 카테고리에서 GPT-5.3 우선
+    coding_arch_HIGH: gpt-5.3-codex
+    security_HIGH: gpt-5.3-codex
+    coding_general_HIGH: gpt-5.3-codex
+  concurrency:
+    max_workers: 3                    # ChatGPT 구독 rate limit 고려
+
+# ──────────────────────────────────────────────
+# 플랜 전환 명령
+# ──────────────────────────────────────────────
+# bash scripts/switch-plan.sh lite
+# bash scripts/switch-plan.sh pro
+# bash scripts/switch-plan.sh max
+# bash scripts/switch-plan.sh pro --with-codex

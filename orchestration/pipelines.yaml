@@ -107,19 +107,34 @@ state_machine:
     ESCALATED: []                   # 종료 상태 (사용자 개입)
 
 # ──────────────────────────────────────────────
-# 동시 실행 설정
+# 동시 실행 설정 (Z.ai 코딩플랜 티어별)
+# active_plan 에 따라 max_workers/max_total_sessions 자동 결정
 # ──────────────────────────────────────────────
 concurrency:
-  max_workers: 5
-  max_total_sessions: 8
   adaptive: true
+  source: "routing/plans.yaml#active_plan"
+
+  by_plan:
+    lite:
+      max_workers: 2
+      max_total_sessions: 3
+    pro:
+      max_workers: 4
+      max_total_sessions: 6
+    max:
+      max_workers: 7
+      max_total_sessions: 12
+
+  # 모델별 추가 상한 (플랜 한도와 min 적용)
   rules:
-    - if: "model == gpt-5.3-codex"
-      max_workers: 3                # 고비용 모델은 동시 수 제한
     - if: "model == glm-5-turbo"
-      max_workers: 7                # 저비용 모델은 더 많이 허용
+      max_workers: 7
+    - if: "model == glm-5"
+      max_workers: 5
     - if: "model == glm-5.1"
-      max_workers: 2                # 고성능 장문/추론 모델은 보수적으로 제한
+      max_workers: 3              # HIGH 모델은 보수적
+    - if: "model == gpt-5.3-codex AND codex_oauth_enabled"
+      max_workers: 3              # ChatGPT 구독 rate limit 보호
 
 # ──────────────────────────────────────────────
 # 실패 대응 정책

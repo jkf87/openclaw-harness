@@ -1,140 +1,183 @@
 # OpenClaw 하네스 — 모델 카탈로그
-# ⚠️ Claude/Gemini 제외 — GLM-5-turbo, GLM-5, GLM-5.1, GPT-5.4-Codex 만 사용
-version: "1.0"
+# ✅ 1순위: Z.ai 코딩플랜 GLM 시리즈 (Lite/Pro/Max)
+# ✅ 2순위: OpenAI Codex OAuth (ChatGPT Plus/Pro 구독 기반, 선택)
+# ❌ 비활성: Anthropic Claude / Google Gemini (직접 API)
+#
+# Z.ai 코딩플랜 가입: https://z.ai/subscribe?ic=OTYO9JPFNV
+#   - lite : $3/월   (GLM-5-turbo, GLM-5)
+#   - pro  : $15/월  (+ GLM-5.1)
+#   - max  : $30/월  (전 모델 + 최대 quota + 우선 슬롯)
+#
+# Codex OAuth: `codex login` 으로 ChatGPT 계정 인증 (CODEX_HOME 디렉토리)
+version: "2.0-zai-multitier"
 
 models:
+  # ════════════════════════════════════════════════
+  # Z.ai GLM 시리즈
+  # ════════════════════════════════════════════════
+
   # ──────────────────────────────────────────────
-  # LOW 티어 — 단순 조회/포맷팅/번역/코드 주석
+  # LOW — 빠른 응답/한국어 기본/포맷팅
+  # 모든 코딩플랜 티어에서 사용 가능 (Lite/Pro/Max)
   # ──────────────────────────────────────────────
   glm-5-turbo:
     provider: zai
     display_name: "GLM-5 Turbo"
     tier: LOW
-    cost_per_1k_input: 0.0003       # USD
-    cost_per_1k_output: 0.0006
+    cost_per_1k_input: 0              # 코딩플랜 정액
+    cost_per_1k_output: 0
     max_context: 128000
-    strengths:
-      - fast_response
-      - korean_native              # 한국어 네이티브 수준
-      - low_cost
-    weaknesses:
-      - complex_reasoning
-      - architecture_design
-    korean_score: 95                # 0-100
+    strengths: [fast_response, korean_native, low_cost]
+    weaknesses: [complex_reasoning, architecture_design]
+    korean_score: 95
     coding_score: 70
     reasoning_score: 60
+    plans: [lite, pro, max]
+    anthropic_alias: haiku
 
   # ──────────────────────────────────────────────
-  # MEDIUM 티어 (코딩 특화) — 구현/디버깅/리팩토링
+  # MEDIUM — 한국어 NLP/일반 코딩/구현/디버깅
+  # 모든 코딩플랜 티어에서 사용 가능
   # ──────────────────────────────────────────────
+  glm-5:
+    provider: zai
+    display_name: "GLM-5"
+    tier: MEDIUM
+    cost_per_1k_input: 0
+    cost_per_1k_output: 0
+    max_context: 128000
+    strengths: [korean_native, general_coding, balanced_reasoning, content_creation]
+    weaknesses: [deep_architecture]
+    korean_score: 95
+    coding_score: 88
+    reasoning_score: 82
+    plans: [lite, pro, max]
+    anthropic_alias: sonnet
+
+  # ──────────────────────────────────────────────
+  # HIGH — 코딩 플래그십 / 리뷰 / 아키텍처 / 보안
+  # Pro 이상에서만 사용 가능
+  # ──────────────────────────────────────────────
+  glm-5.1:
+    provider: zai
+    display_name: "GLM-5.1"
+    tier: HIGH
+    cost_per_1k_input: 0
+    cost_per_1k_output: 0
+    max_context: 204800
+    strengths:
+      - advanced_reasoning
+      - code_generation
+      - code_review
+      - architecture_design
+      - security_audit
+      - korean_native
+      - long_context
+    weaknesses: [higher_latency, lite_plan_excluded]
+    korean_score: 96
+    coding_score: 95
+    reasoning_score: 95
+    plans: [pro, max]                 # ⚠️ Lite 플랜에서는 사용 불가
+    anthropic_alias: opus
+
+  # ════════════════════════════════════════════════
+  # OpenAI Codex (선택) — ChatGPT Plus/Pro OAuth
+  # ════════════════════════════════════════════════
   gpt-5.3-codex:
     provider: openai-codex
     display_name: "GPT-5.3 Codex"
-    tier: MEDIUM
-    cost_per_1k_input: 0.003
-    cost_per_1k_output: 0.015
+    tier: HIGH
+    cost_per_1k_input: 0              # ChatGPT 구독 정액
+    cost_per_1k_output: 0
     max_context: 200000
     strengths:
       - code_generation
       - debugging
       - refactoring
       - architecture_design
-    weaknesses:
-      - korean_generation           # 한국어 생성은 중간
+      - security_audit
+    weaknesses: [korean_generation_mid]
     korean_score: 70
     coding_score: 95
-    reasoning_score: 90
-
-  # ──────────────────────────────────────────────
-  # MEDIUM 티어 (한국어 특화) — 한국어 NLP/문서/번역
-  # ──────────────────────────────────────────────
-  glm-5:
-    provider: zai
-    display_name: "GLM-5"
-    tier: MEDIUM
-    cost_per_1k_input: 0.002
-    cost_per_1k_output: 0.008
-    max_context: 128000
-    strengths:
-      - korean_native
-      - general_reasoning
-      - balanced_cost
-      - content_creation
-    weaknesses:
-      - complex_architecture
-    korean_score: 95
-    coding_score: 80
-    reasoning_score: 80
-
-  # ──────────────────────────────────────────────
-  # HIGH 티어 (추론/전략 특화) — 최신 GLM-5.1
-  # docs.z.ai/devpack/using5.1 기준 OpenClaw/Claude Code 지원
-  # ──────────────────────────────────────────────
-  glm-5.1:
-    provider: zai
-    display_name: "GLM-5.1"
-    tier: HIGH
-    # 공식 usage 문서에는 비용이 0 placeholder로 제공됨.
-    # 실제 과금 정책은 Z.ai 콘솔/계약 기준으로 갱신 필요.
-    cost_per_1k_input: 0
-    cost_per_1k_output: 0
-    max_context: 204800
-    strengths:
-      - advanced_reasoning
-      - strategic_planning
-      - korean_native
-      - code_review
-      - long_context
-    weaknesses:
-      - cost_tbd
-    korean_score: 96
-    coding_score: 88
-    reasoning_score: 94
+    reasoning_score: 92
+    auth: oauth_codex                 # codex login (CODEX_HOME)
+    optional: true                    # Z.ai 단독 사용도 OK
+    plans: [oauth]
 
 # ──────────────────────────────────────────────
-# 프로바이더 설정
+# 프로바이더
 # ──────────────────────────────────────────────
 providers:
   zai:
-    type: api_key
+    type: oauth_or_api_key
     key_env: ZAI_API_KEY
     base_url: https://api.z.ai/v1
-    models: [glm-5-turbo, glm-5, glm-5.1]
+    anthropic_base_url: https://api.z.ai/api/anthropic
+    auth_env: ANTHROPIC_AUTH_TOKEN
+    plans:
+      lite:
+        price_usd_month: 3
+        models: [glm-5-turbo, glm-5]
+        daily_token_budget: 1500000
+        max_concurrent_workers: 2
+      pro:
+        price_usd_month: 15
+        models: [glm-5-turbo, glm-5, glm-5.1]
+        daily_token_budget: 8000000
+        max_concurrent_workers: 4
+      max:
+        price_usd_month: 30
+        models: [glm-5-turbo, glm-5, glm-5.1]
+        daily_token_budget: 25000000
+        max_concurrent_workers: 7
+        priority_slot: true
 
   openai-codex:
-    type: api_key
-    key_env: OPENAI_API_KEY
+    type: oauth
+    auth: codex_login                 # CODEX_HOME 기반
     base_url: https://api.openai.com/v1
     models: [gpt-5.3-codex]
+    optional: true
 
 # ──────────────────────────────────────────────
-# 폴백 체인 (Claude/Gemini 제외 버전)
+# 폴백 체인 (플랜별)
 # ──────────────────────────────────────────────
 fallback_chains:
+  # Lite — GLM-5.1 없음
+  coding_lite:
+    primary: glm-5
+    fallbacks: [glm-5-turbo]
+
+  korean_lite:
+    primary: glm-5
+    fallbacks: [glm-5-turbo]
+
+  reasoning_lite:
+    primary: glm-5
+    fallbacks: [glm-5-turbo]
+
+  # Pro/Max — GLM-5.1 사용 가능
   coding:
-    primary: gpt-5.3-codex
-    fallbacks:
-      - glm-5.1                    # Z.ai 최신 고성능 대체
-      - glm-5                      # Z.ai 대체
-      - glm-5-turbo                # 최후의 수단 (저비용)
+    primary: glm-5.1
+    fallbacks: [glm-5, glm-5-turbo]
 
   korean:
     primary: glm-5.1
-    fallbacks:
-      - glm-5                      # 균형형 GLM
-      - glm-5-turbo                # 같은 프로바이더, 저렴한 모델
-      - gpt-5.3-codex              # 한국어 기본 수준
+    fallbacks: [glm-5, glm-5-turbo]
 
   reasoning:
     primary: glm-5.1
-    fallbacks:
-      - gpt-5.3-codex              # 강한 코딩/추론 대체
-      - glm-5                      # 추론 양호
-      - glm-5-turbo                # 대체
+    fallbacks: [glm-5, glm-5-turbo]
+
+  # Codex OAuth가 함께 켜진 경우 — 코딩/보안에 우선 사용
+  coding_with_codex:
+    primary: gpt-5.3-codex
+    fallbacks: [glm-5.1, glm-5, glm-5-turbo]
+
+  security_with_codex:
+    primary: gpt-5.3-codex
+    fallbacks: [glm-5.1, glm-5]
 
   default:
-    primary: gpt-5.3-codex
-    fallbacks:
-      - glm-5.1
-      - glm-5
-      - glm-5-turbo
+    primary: glm-5
+    fallbacks: [glm-5.1, glm-5-turbo]

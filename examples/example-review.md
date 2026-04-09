@@ -2,7 +2,7 @@
 
 > 리뷰 대상: T3 구현 결과
 > 에이전트: reviewer
-> 모델: gpt-5.3-codex (HIGH 티어, 읽기 전용)
+> 모델: glm-5.1 (HIGH 티어, 읽기 전용, Pro/Max 플랜)
 
 ## review_verdict_v1 출력
 

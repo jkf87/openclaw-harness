@@ -111,7 +111,7 @@ guardrails:
   "mode": "full",
   "phase": "WORKING",
   "agents": {
-    "worker-1": { "status": "completed", "model": "gpt-5.3-codex", "started_at": "...", "completed_at": "...", "summary": "..." },
+    "worker-1": { "status": "completed", "model": "glm-5.1", "started_at": "...", "completed_at": "...", "summary": "..." },
     "worker-2": { "status": "running", "model": "glm-5-turbo", "started_at": "..." }
   },
   "progress": { "completed": 1, "total": 3, "failed": 0 },
