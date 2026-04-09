@@ -102,6 +102,41 @@ else
     fi
 fi
 
+# ── 모델 → 계정 풀 매핑 ──
+model_to_pool() {
+    local model="$1"
+    case "$model" in
+        glm-*|zai-*)              echo "zai" ;;
+        gpt-*|codex-*|openai-*)   echo "openai" ;;
+        *)                        echo "" ;;
+    esac
+}
+
+# ── 계정 풀에서 토큰 선택 (round-robin) ──
+SELECTED_POOL=""
+SELECTED_ACCOUNT=""
+SELECTED_ENV_KEY=""
+ACCOUNT_POOL_STATUS="skipped"
+
+POOL_NAME=$(model_to_pool "$SELECTED_MODEL")
+POOL_SCRIPT="${SCRIPT_DIR}/account-pool.sh"
+
+if [[ -n "$POOL_NAME" ]] && [[ -x "$POOL_SCRIPT" ]]; then
+    POOL_OUTPUT=$("$POOL_SCRIPT" next "$POOL_NAME" 2>&1 || true)
+    if echo "$POOL_OUTPUT" | grep -q "account_id:"; then
+        SELECTED_POOL="$POOL_NAME"
+        SELECTED_ACCOUNT=$(echo "$POOL_OUTPUT" | grep 'account_id:' | sed 's/.*: //' | xargs)
+        SELECTED_ENV_KEY=$(echo "$POOL_OUTPUT" | grep 'env_key:' | sed 's/.*: //' | xargs)
+        ACCOUNT_POOL_STATUS="selected"
+    elif echo "$POOL_OUTPUT" | grep -q "all_accounts_in_cooldown"; then
+        SELECTED_POOL="$POOL_NAME"
+        ACCOUNT_POOL_STATUS="all_cooldown"
+        echo "[경고] 풀 '${POOL_NAME}': 모든 계정 쿨다운 중" >&2
+    else
+        ACCOUNT_POOL_STATUS="error"
+    fi
+fi
+
 build_context() {
     cat <<CONTEXT_EOF
 # 에이전트: ${AGENT_NAME}
@@ -127,6 +162,11 @@ echo "  모델: ${SELECTED_MODEL}"
 echo "  세션 유형: ${SESSION_TYPE}"
 echo "  타임아웃: $((TIMEOUT_MS / 1000))초"
 echo "  최대 토큰: ${MAX_TOKENS}"
+if [[ -n "$SELECTED_ACCOUNT" ]]; then
+    echo "  계정 풀: ${SELECTED_POOL} → ${SELECTED_ACCOUNT} (env=${SELECTED_ENV_KEY})"
+elif [[ -n "$SELECTED_POOL" ]]; then
+    echo "  계정 풀: ${SELECTED_POOL} → ${ACCOUNT_POOL_STATUS}"
+fi
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 
 # 현재 공개 openclaw CLI만으로는 sessions_spawn 툴 호출을 재현할 수 없어서
@@ -138,6 +178,14 @@ echo "  model: ${SELECTED_MODEL}"
 echo "  session_type: ${SESSION_TYPE}"
 echo "  timeout_ms: ${TIMEOUT_MS}"
 echo "  max_tokens: ${MAX_TOKENS}"
+echo "  account_pool: ${ACCOUNT_POOL_STATUS}"
+if [[ -n "$SELECTED_POOL" ]]; then
+    echo "  pool: ${SELECTED_POOL}"
+fi
+if [[ -n "$SELECTED_ACCOUNT" ]]; then
+    echo "  account_id: ${SELECTED_ACCOUNT}"
+    echo "  env_key: ${SELECTED_ENV_KEY}"
+fi
 echo "  status: simulated"
 echo "  context_preview: |"
 printf '%s\n' "$CONTEXT" | sed 's/^/    /'
