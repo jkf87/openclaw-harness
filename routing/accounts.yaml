@@ -1,0 +1,72 @@
+# OpenClaw 하네스 — 계정 풀 설정 (OAuth Round-Robin)
+# 동일 프로바이더에 대해 여러 계정/토큰을 풀로 관리하여
+# rate limit을 분산하고 가용성을 높입니다.
+#
+# 사용법:
+#   1. 계정 추가: pools.<provider>.accounts 아래에 env_key 설정
+#   2. 전략 선택: round_robin (순차) 또는 fan_out (동시 호출)
+#   3. 쿨다운: rate limit/인증 오류 시 자동 백오프
+#
+# ⚠️ 주의: 실제 토큰은 환경변수에 저장하세요
+
+version: "1.0"
+
+# ──────────────────────────────────────────────
+# 글로벌 설정
+# ──────────────────────────────────────────────
+pool_defaults:
+  strategy: round_robin          # round_robin | fan_out
+  cooldown_seconds: 60           # rate limit 히트 시 쿨다운 (초)
+  max_cooldown_seconds: 600      # 최대 쿨다운 (지수 백오프 상한)
+  backoff_multiplier: 2          # 연속 오류 시 쿨다운 배수
+  health_check_interval: 300     # 계정 상태 체크 간격 (초)
+  fan_out_timeout: 30            # fan_out 모드에서 최대 대기 시간 (초)
+  state_file: "state/account-pool-state.json"
+
+# ──────────────────────────────────────────────
+# 프로바이더별 계정 풀
+# ──────────────────────────────────────────────
+pools:
+  # ── Z.ai (GLM 시리즈) ──
+  zai:
+    base_url: https://api.z.ai/v1
+    strategy: round_robin
+    accounts:
+      - id: zai-primary
+        env_key: ZAI_API_KEY
+        weight: 10
+        enabled: true
+
+      - id: zai-secondary
+        env_key: ZAI_API_KEY_2
+        weight: 5
+        enabled: true
+
+  # ── OpenAI (GPT-5.3-Codex) ──
+  openai:
+    base_url: https://api.openai.com/v1
+    strategy: round_robin
+    accounts:
+      - id: openai-primary
+        env_key: OPENAI_API_KEY
+        weight: 10
+        enabled: true
+
+      - id: openai-secondary
+        env_key: OPENAI_API_KEY_2
+        weight: 5
+        enabled: true
+
+  # ── fan_out 예제 (rate limit 분산이 핵심일 때) ──
+  # zai-fanout:
+  #   base_url: https://api.z.ai/v1
+  #   strategy: fan_out
+  #   accounts:
+  #     - id: zai-fan-1
+  #       env_key: ZAI_API_KEY
+  #       weight: 10
+  #       enabled: true
+  #     - id: zai-fan-2
+  #       env_key: ZAI_API_KEY_2
+  #       weight: 10
+  #       enabled: true

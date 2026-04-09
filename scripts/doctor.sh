@@ -28,7 +28,7 @@ echo "  OpenClaw 하네스 진단"
 echo "  하네스 디렉토리: ${HARNESS_DIR}"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo ""
-echo "[1/5] 핵심 파일 검사"
+echo "[1/7] 핵심 파일 검사"
 
 required_files=(
     "SKILL.md:스킬 정의"
@@ -43,6 +43,7 @@ required_files=(
     "routing/budget-profiles.yaml:예산 프로파일"
     "orchestration/pipelines.yaml:파이프라인 정의"
     "orchestration/message-protocol.md:메시지 프로토콜"
+    "routing/accounts.yaml:계정 풀 설정"
 )
 
 for entry in "${required_files[@]}"; do
@@ -59,7 +60,7 @@ done
 # 2. 스크립트 실행 권한 검사
 # ──────────────────────────────────────────────
 echo ""
-echo "[2/5] 스크립트 실행 권한 검사"
+echo "[2/7] 스크립트 실행 권한 검사"
 
 scripts=(
     "scripts/route-task.sh"
@@ -68,6 +69,8 @@ scripts=(
     "scripts/install.sh"
     "scripts/catalog-gen.sh"
     "scripts/doctor.sh"
+    "scripts/account-pool.sh"
+    "scripts/account-pool-demo.sh"
 )
 
 for script in "${scripts[@]}"; do
@@ -86,12 +89,13 @@ done
 # 3. YAML 유효성 검사 (기본)
 # ──────────────────────────────────────────────
 echo ""
-echo "[3/5] YAML 구문 검사"
+echo "[3/7] YAML 구문 검사"
 
 yaml_files=(
     "routing/models.yaml"
     "routing/routing-rules.yaml"
     "routing/budget-profiles.yaml"
+    "routing/accounts.yaml"
     "orchestration/pipelines.yaml"
 )
 
@@ -114,7 +118,7 @@ done
 # 4. 환경 변수 검사
 # ──────────────────────────────────────────────
 echo ""
-echo "[4/5] 환경 변수 검사"
+echo "[4/7] 환경 변수 검사"
 
 env_vars=(
     "ZAI_API_KEY:Z.ai API 키 (GLM-5 시리즈) — openclaw onboard로 OAuth 설정"
@@ -135,7 +139,7 @@ done
 # 5. OpenClaw 연동 검사
 # ──────────────────────────────────────────────
 echo ""
-echo "[5/6] OpenClaw 연동 검사"
+echo "[5/7] OpenClaw 연동 검사"
 
 if command -v openclaw &>/dev/null; then
     check_pass "openclaw CLI 설치됨"
@@ -159,7 +163,7 @@ fi
 # 6. 브릿지 검사 (S2)
 # ──────────────────────────────────────────────
 echo ""
-echo "[6/6] 브릿지 검사"
+echo "[6/7] 브릿지 검사"
 
 BRIDGE_SCRIPT="${HARNESS_DIR}/scripts/bridge.sh"
 BRIDGE_AGENT="${HARNESS_DIR}/agents/bridge.md"
@@ -211,6 +215,39 @@ if [[ -x "${BRIDGE_SCRIPT}" ]] && command -v python3 &>/dev/null; then
     fi
     
     rm -rf "${TEST_DIR}"
+fi
+
+# ──────────────────────────────────────────────
+# 7. 계정 풀 검사
+# ──────────────────────────────────────────────
+echo ""
+echo "[7/7] 계정 풀 검사"
+
+POOL_SCRIPT="${HARNESS_DIR}/scripts/account-pool.sh"
+ACCOUNTS_YAML="${HARNESS_DIR}/routing/accounts.yaml"
+
+if [[ -f "${ACCOUNTS_YAML}" ]] && [[ -x "${POOL_SCRIPT}" ]] && command -v python3 &>/dev/null; then
+    POOL_TEST_DIR=$(mktemp -d)
+    POOL_TEST_STATE="${POOL_TEST_DIR}/pool-state.json"
+    POOL_OUTPUT=$(HARNESS_DIR="${HARNESS_DIR}" POOL_STATE="${POOL_TEST_STATE}" \
+        "${POOL_SCRIPT}" status 2>&1 || true)
+    if echo "${POOL_OUTPUT}" | grep -q "account_pool_summary:"; then
+        check_pass "계정 풀 status 동작"
+    else
+        check_warn "계정 풀 status 응답 이상"
+    fi
+
+    POOL_NAMES=$(echo "${POOL_OUTPUT}" | grep -E '^\s*- pool:' | wc -l | tr -d ' ')
+    if [[ "${POOL_NAMES}" -gt 0 ]]; then
+        check_pass "계정 풀 정의 ${POOL_NAMES}개 감지"
+    else
+        check_warn "계정 풀 정의 없음 — routing/accounts.yaml 확인"
+    fi
+    rm -rf "${POOL_TEST_DIR}"
+else
+    [[ ! -f "${ACCOUNTS_YAML}" ]] && check_fail "routing/accounts.yaml 누락"
+    [[ ! -x "${POOL_SCRIPT}" ]] && check_warn "scripts/account-pool.sh 실행 권한 없음"
+    command -v python3 &>/dev/null || check_warn "python3 미설치 — 계정 풀 동작 불가"
 fi
 
 # ──────────────────────────────────────────────
