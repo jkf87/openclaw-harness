@@ -70,17 +70,20 @@ Models   glm-5-turbo, glm-5, glm-5.1
 
 ## 멀티프로바이더 라우팅
 
-### 지원 모델
+### 지원 모델 (공식 벤치마크 기준)
 
-| 모델 | 코딩 | 추론 | 한국어 | 확장사고 | 플랜 |
-|------|------|------|--------|---------|------|
-| **GLM-5 Turbo** | 70 | 60 | 95 | — | Lite / Pro / Max |
-| **GLM-5** | 88 | 82 | 95 | — | Lite / Pro / Max |
-| **GLM-5.1** | 95 | 95 | 96 | ⚡ 지원 | Pro / Max |
-| **GPT-5.4** | 97 | 97 | **97** | ⚡ 지원 | ChatGPT 구독 (OAuth) |
+| 모델 | SWE-Bench Pro (코딩) | GPQA Diamond (추론) | AIME 2025/26 (수학) | 확장사고 | 플랜 |
+|------|---------------------|--------------------|--------------------|---------|------|
+| **GLM-5 Turbo** | — | — | — | — | Lite / Pro / Max |
+| **GLM-5** | — | 86.0 | 84.0 | — | Lite / Pro / Max |
+| **GLM-5.1** | **58.4** (1위) | 86.2 | 95.3 | ⚡ 지원 | Pro / Max |
+| **GPT-5.4** | 57.7 | **92.8** | **100** | ⚡ 지원 | ChatGPT 구독 (OAuth) |
 
-> ⚡ **확장 사고(extended thinking)**: 복잡한 추론이 필요한 태스크에서 더 깊이 생각하는 모드. 숫자는 0–100 상대 점수.
-> GPT-5.4 는 코딩/추론/한국어 전 영역 97점으로 최상위입니다. ChatGPT 구독(OAuth) 활성 시 모든 태스크에서 최우선 선택됩니다.
+> ⚡ **확장 사고(extended thinking)**: 복잡한 추론이 필요한 태스크에서 더 깊이 생각하는 모드.
+>
+> **GLM-5.1** 은 SWE-Bench Pro 코딩 벤치마크 **세계 1위** (GPT-5.4, Claude Opus 4.6 을 앞섬). **GPT-5.4** 는 GPQA Diamond 추론 + AIME 수학에서 최고점. 한국어 전용 벤치마크는 현재 공식 발표 없음.
+>
+> 출처: [MarkTechPost](https://www.marktechpost.com/2026/04/08/z-ai-introduces-glm-5-1-an-open-weight-754b-agentic-model-that-achieves-sota-on-swe-bench-pro-and-sustains-8-hour-autonomous-execution/) · [Artificial Analysis](https://artificialanalysis.ai/models/gpt-5-4) · [BenchLM](https://benchlm.ai/models/glm-5-1)
 
 ### Z.ai 코딩플랜
 
