@@ -44,7 +44,24 @@ ls "$(dirname $0)/routing.json" 2>/dev/null || \
   ls skills/ohmyclaw/routing.json
 ```
 
-확인 안 되면 `## 11. Doctor` 섹션의 preflight 를 수행하세요.
+확인 안 되면 `## 12. Doctor` 섹션의 preflight 를 수행하세요.
+
+### 커스텀 명령어 (자연어로도 동작)
+
+사용자가 아래 키워드를 포함하면 에이전트가 해당 스크립트를 실행합니다:
+
+| 키워드 | 실행 | 설명 |
+|--------|------|------|
+| `ohmyclaw hud` / "대시보드 보여줘" / "상태 보여줘" | `$SKILL/hud.sh` | 플랜/계정/quota/모델/라우팅 대시보드 |
+| `ohmyclaw hud --compact` / "상태 한 줄" | `$SKILL/hud.sh --compact` | 한 줄 요약 |
+| `ohmyclaw route "<task>"` / "이거 어떤 모델?" | `$SKILL/select-model.sh "<task>" auto --json` | 라우팅 결과 JSON |
+| `ohmyclaw pool status` / "계정 상태" | `$SKILL/pool.sh status` | 풀 + cooldown |
+| `ohmyclaw doctor` / "점검해줘" | `## 12. Doctor` 의 bash snippet | 10항목 점검 |
+| `ohmyclaw plan "<task>"` | § 7 verb → planner.md | 계획 수립 |
+| `ohmyclaw exec "<task>"` | § 7 verb → executor.md | 직접 실행 |
+| `ohmyclaw review` | § 7 verb → reviewer.md | 5관점 리뷰 |
+
+> **자연어 매핑**: "지금 계정 상태 어때?" → `hud.sh`, "이 태스크 어떤 모델로 돌려?" → `select-model.sh --json`, "리뷰 좀" → `reviewer.md`
 
 ---
 
