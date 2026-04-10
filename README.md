@@ -2,7 +2,7 @@
 
 > OpenClaw 용 멀티프로바이더/멀티계정 에이전트 하네스 스킬
 
-Z.ai 코딩플랜(Lite/Pro/Max) + ChatGPT Codex OAuth 다중 계정을 하나의 스킬로 라우팅하고, OMX 스타일 composable verbs (`/exec`, `/team`, `/ralph`, `/plan`, `/review`, `/debug`, `/hud`)로 작업을 실행합니다.
+Z.ai 코딩플랜(Lite/Pro/Max) + ChatGPT Codex OAuth 다중 계정을 하나의 스킬로 라우팅하고, OMX 스타일 composable verbs (`/ohmyclaw exec`, `/ohmyclaw team`, `/ohmyclaw ralph`, `/ohmyclaw plan`, `/ohmyclaw review`, `/ohmyclaw debug`, `/ohmyclaw`)로 작업을 실행합니다.
 
 [![Release](https://img.shields.io/github/v/release/jkf87/ohmyclaw)](https://github.com/jkf87/ohmyclaw/releases)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
@@ -17,25 +17,25 @@ ln -sfn "$(pwd)/ohmyclaw/skills/ohmyclaw" ~/.openclaw/skills/ohmyclaw
 그 다음 아무 OpenClaw 에이전트(Telegram/Discord/Web/CLI)에서:
 
 ```
-/hud
+/ohmyclaw
 ```
 
 ## 슬래시 명령어
 
 | 명령어 | 자연어 | 역할 |
 |--------|--------|------|
-| **`/hud`** | "대시보드" "상태 보여줘" | 플랜/계정/quota/모델 대시보드 |
-| `/hud compact` | "상태 한 줄" | `🦞 PRO \| zai:1 \| codex:off \| 0%` |
-| `/route <task>` | "이거 어떤 모델?" | 라우팅 결정 JSON |
-| `/pool` | "계정 상태" | 풀 + cooldown 표 |
-| `/doctor` | "점검해줘" | 10항목 점검 |
-| `/exec <task>` | "이거 해줘" | 자율 실행 (executor.md) |
-| `/plan <task>` | "계획 세워줘" | 계획 수립 (planner.md) |
-| `/plan --consensus` | "합의해서 계획" | planner→architect→critic 합의 |
-| `/review` | "리뷰 좀" | 5관점 리뷰 + 갭 감지 |
-| `/team N <task>` | "3명이서 해" | 병렬 워커 |
-| `/ralph <task>` | "끝까지 해" | 끝까지 루프 (executor+verifier) |
-| `/debug <task>` | "버그 잡아" | 4단계 RCA |
+| **`/ohmyclaw`** | "대시보드" "상태 보여줘" | 플랜/계정/quota/모델 대시보드 |
+| `/ohmyclaw compact` | "상태 한 줄" | `🦞 PRO \| zai:1 \| codex:off \| 0%` |
+| `/ohmyclaw route <task>` | "이거 어떤 모델?" | 라우팅 결정 JSON |
+| `/ohmyclaw pool` | "계정 상태" | 풀 + cooldown 표 |
+| `/ohmyclaw doctor` | "점검해줘" | 10항목 점검 |
+| `/ohmyclaw exec <task>` | "이거 해줘" | 자율 실행 (executor.md) |
+| `/ohmyclaw plan <task>` | "계획 세워줘" | 계획 수립 (planner.md) |
+| `/ohmyclaw plan --consensus` | "합의해서 계획" | planner→architect→critic 합의 |
+| `/ohmyclaw review` | "리뷰 좀" | 5관점 리뷰 + 갭 감지 |
+| `/ohmyclaw team N <task>` | "3명이서 해" | 병렬 워커 |
+| `/ohmyclaw ralph <task>` | "끝까지 해" | 끝까지 루프 (executor+verifier) |
+| `/ohmyclaw debug <task>` | "버그 잡아" | 4단계 RCA |
 
 ## HUD 대시보드
 
