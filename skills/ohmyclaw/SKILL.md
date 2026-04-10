@@ -48,25 +48,28 @@ ls "$(dirname $0)/routing.json" 2>/dev/null || \
 
 ### 슬래시 명령어 (Telegram/Discord/Web 공통)
 
-사용자가 아래 명령어를 입력하면 에이전트가 **즉시** 해당 스크립트를 실행하고 결과를 보여줍니다. 자연어로도 동작합니다.
+모든 명령어는 **`/ohmyclaw`** 네임스페이스 아래에 있습니다 (다른 스킬의 `/hud` 등과 충돌 방지).
 
 | 명령어 | 자연어 | 실행 | 출력 |
 |--------|--------|------|------|
-| **`/hud`** | "대시보드" "상태 보여줘" | `$SKILL/hud.sh` | 플랜/계정/quota/모델 대시보드 |
-| `/hud compact` | "상태 한 줄" | `$SKILL/hud.sh --compact` | `🦞 PRO \| zai:1 \| codex:off \| 0%` |
-| `/route <task>` | "이거 어떤 모델?" | `$SKILL/select-model.sh "<task>" auto --json` | 라우팅 JSON |
-| `/pool` | "계정 상태" | `$SKILL/pool.sh status` | 풀 + cooldown 표 |
-| `/doctor` | "점검해줘" | § 12 bash snippet | 10항목 점검 |
-| `/plan <task>` | "계획 세워줘" | § 7 → planner.md | 계획 수립 |
-| `/exec <task>` | "이거 해줘" | § 7 → executor.md | 직접 실행 |
-| `/review` | "리뷰 좀" | § 7 → reviewer.md | 5관점 + 갭 감지 |
-| `/team N <task>` | "3명이서 해" | § 7 → team-*.md | 병렬 워커 |
-| `/ralph <task>` | "끝까지 해" | § 7 → executor+verifier | 루프 |
-| `/debug <task>` | "버그 잡아" | § 7 → debugger.md | 4단계 RCA |
+| **`/ohmyclaw`** | "ohmyclaw 상태" "사용량 보여줘" | `$SKILL/hud.sh` | 플랜/계정/quota/모델 대시보드 |
+| `/ohmyclaw compact` | "상태 한 줄" | `$SKILL/hud.sh --compact` | `🦞 PRO \| zai:230K \| codex:32K \| 3%` |
+| `/ohmyclaw route <task>` | "이거 어떤 모델?" | `$SKILL/select-model.sh "<task>" auto --json` | 라우팅 JSON |
+| `/ohmyclaw pool` | "계정 상태" | `$SKILL/pool.sh status` | 풀 + cooldown 표 |
+| `/ohmyclaw doctor` | "점검해줘" | § 12 bash snippet | 10항목 점검 |
+| `/ohmyclaw exec <task>` | "이거 해줘" | § 7 → executor.md | 직접 실행 |
+| `/ohmyclaw plan <task>` | "계획 세워줘" | § 7 → planner.md | 계획 수립 |
+| `/ohmyclaw plan --consensus` | "합의해서 계획" | § 7 → planner→architect→critic | 합의 루프 |
+| `/ohmyclaw review` | "리뷰 좀" | § 7 → reviewer.md | 5관점 + 갭 감지 |
+| `/ohmyclaw team N <task>` | "3명이서 해" | § 7 → team-*.md | 병렬 워커 |
+| `/ohmyclaw ralph <task>` | "끝까지 해" | § 7 → executor+verifier | 루프 |
+| `/ohmyclaw debug <task>` | "버그 잡아" | § 7 → debugger.md | 4단계 RCA |
 
-> **에이전트 인식 규칙**: 사용자가 `/hud`, `/route`, `/pool`, `/doctor` 를 입력하면 **대화/분석 없이 즉시 스크립트를 bash 로 실행**하고 결과를 보여줍니다. 해석이나 추가 질문 금지.
+> **에이전트 인식 규칙**: 사용자가 `/ohmyclaw` 로 시작하는 명령어를 입력하면 **ohmyclaw 스킬의 스크립트를 즉시 bash 로 실행**하고 결과를 보여줍니다. OMC 의 `/hud` 와 혼동 금지 — `/ohmyclaw` 는 반드시 ohmyclaw 스킬 경로(`~/.openclaw/skills/ohmyclaw/` 또는 `~/.openclaw/repos/ohmyclaw/skills/ohmyclaw/`)의 스크립트를 실행합니다.
 >
-> **자연어 매핑**: "지금 상태 어때?" → `/hud`, "이 태스크 모델은?" → `/route`, "계정 괜찮아?" → `/pool`
+> **자연어 매핑**: "ohmyclaw 사용량" → `/ohmyclaw`, "모델 뭐로?" → `/ohmyclaw route`, "계정 상태" → `/ohmyclaw pool`
+>
+> **주의**: `/hud` 단독은 OMC HUD 입니다. ohmyclaw 대시보드는 반드시 `/ohmyclaw` 으로 호출하세요.
 
 ---
 
