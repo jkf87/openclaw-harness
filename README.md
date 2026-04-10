@@ -112,7 +112,38 @@ export CODEX_OAUTH_ENABLED=true           # ChatGPT 구독 보유 시
 
 ### 다중 계정 풀
 
-Z.ai 3계정 + ChatGPT OAuth 2계정을 순환 배분(round-robin)합니다. 한 계정이 제한에 걸리면 자동으로 다음 계정으로 전환되고, 대기 시간은 60초에서 최대 600초까지 점진적으로 늘어납니다. 여러 계정에 동시 발사(fan-out)도 가능합니다.
+Z.ai + ChatGPT OAuth 계정을 **제한 없이** 추가할 수 있습니다. 순환 배분(round-robin)으로 rate limit 을 분산하고, 한 계정이 제한에 걸리면 자동으로 다음 계정으로 전환됩니다 (대기 시간 60초 → 최대 600초 점진 증가). 여러 계정에 동시 발사(fan-out)도 가능합니다.
+
+#### ChatGPT 계정 추가 방법
+
+```bash
+# 1. 계정별로 별도 디렉토리에 OAuth 로그인
+codex login                              # 기본 (~/.codex)
+CODEX_HOME=~/.codex-acct2 codex login    # 2번째
+CODEX_HOME=~/.codex-acct3 codex login    # 3번째
+CODEX_HOME=~/.codex-acct4 codex login    # 원하는 만큼
+
+# 2. routing.json 에 계정 추가 (skills/ohmyclaw/routing.json)
+#    accounts.pools.codex.accounts 배열에 항목 추가:
+#    { "id": "codex-acct3", "authType": "oauth_codex", "codexHome": "~/.codex-acct3", "weight": 10, "enabled": true }
+
+# 3. 확인
+skills/ohmyclaw/pool.sh status codex
+```
+
+> **계정 수 제한 없음.** ChatGPT Plus($20/월) 또는 Pro($200/월) 구독 1개 = OAuth 토큰 1개. 구독 5개면 5계정 풀 가능. `pool.sh` 가 전부 round-robin 으로 순환합니다.
+
+#### Z.ai 계정 추가
+
+```bash
+# 보조 API 키 발급 후 환경변수 등록
+export ZAI_API_KEY_2="zai_..."
+
+# routing.json 에서 zai-secondary 의 enabled 를 true 로 변경
+# 팀 Max 계정도 동일하게 추가 가능
+```
+
+#### 풀 관리 명령어
 
 ```bash
 # 계정 상태
@@ -121,8 +152,14 @@ skills/ohmyclaw/pool.sh status
 # round-robin 픽
 skills/ohmyclaw/pool.sh next glm-5.1
 
-# cooldown 마킹 (rate limit hit)
-skills/ohmyclaw/pool.sh cooldown zai-primary
+# rate limit 걸렸을 때 cooldown 마킹
+skills/ohmyclaw/pool.sh cooldown codex-acct3
+
+# cooldown 해제
+skills/ohmyclaw/pool.sh release codex-acct3
+
+# 전체 상태 리셋
+skills/ohmyclaw/pool.sh reset
 ```
 
 ## Composable Verbs (OMX 스타일)
