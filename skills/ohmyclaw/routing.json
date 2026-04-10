@@ -106,24 +106,24 @@
       "security":         { "LOW": "glm-5",       "MEDIUM": "glm-5", "HIGH": "glm-5" }
     },
     "pro": {
-      "coding_general":   { "LOW": "glm-5-turbo", "MEDIUM": "glm-5",   "HIGH": "glm-5.1" },
-      "coding_arch":      { "LOW": "glm-5",       "MEDIUM": "glm-5.1", "HIGH": "glm-5.1" },
-      "korean_nlp":       { "LOW": "glm-5-turbo", "MEDIUM": "glm-5",   "HIGH": "glm-5.1" },
-      "reasoning":        { "LOW": "glm-5-turbo", "MEDIUM": "glm-5",   "HIGH": "glm-5.1" },
-      "debugging":        { "LOW": "glm-5-turbo", "MEDIUM": "glm-5",   "HIGH": "glm-5.1" },
-      "content_creation": { "LOW": "glm-5-turbo", "MEDIUM": "glm-5",   "HIGH": "glm-5.1" },
-      "data_analysis":    { "LOW": "glm-5-turbo", "MEDIUM": "glm-5",   "HIGH": "glm-5.1" },
-      "security":         { "LOW": "glm-5",       "MEDIUM": "glm-5.1", "HIGH": "glm-5.1" }
+      "coding_general":   { "LOW": "glm-5",   "MEDIUM": "glm-5",   "HIGH": "glm-5.1" },
+      "coding_arch":      { "LOW": "glm-5",   "MEDIUM": "glm-5.1", "HIGH": "glm-5.1" },
+      "korean_nlp":       { "LOW": "glm-5",   "MEDIUM": "glm-5",   "HIGH": "glm-5.1" },
+      "reasoning":        { "LOW": "glm-5",   "MEDIUM": "glm-5",   "HIGH": "glm-5.1" },
+      "debugging":        { "LOW": "glm-5",   "MEDIUM": "glm-5",   "HIGH": "glm-5.1" },
+      "content_creation": { "LOW": "glm-5",   "MEDIUM": "glm-5",   "HIGH": "glm-5.1" },
+      "data_analysis":    { "LOW": "glm-5",   "MEDIUM": "glm-5",   "HIGH": "glm-5.1" },
+      "security":         { "LOW": "glm-5",   "MEDIUM": "glm-5.1", "HIGH": "glm-5.1" }
     },
     "max": {
-      "coding_general":   { "LOW": "glm-5-turbo", "MEDIUM": "glm-5.1", "HIGH": "glm-5.1" },
-      "coding_arch":      { "LOW": "glm-5.1",     "MEDIUM": "glm-5.1", "HIGH": "glm-5.1" },
-      "korean_nlp":       { "LOW": "glm-5-turbo", "MEDIUM": "glm-5",   "HIGH": "glm-5.1" },
-      "reasoning":        { "LOW": "glm-5",       "MEDIUM": "glm-5.1", "HIGH": "glm-5.1" },
-      "debugging":        { "LOW": "glm-5-turbo", "MEDIUM": "glm-5.1", "HIGH": "glm-5.1" },
-      "content_creation": { "LOW": "glm-5-turbo", "MEDIUM": "glm-5",   "HIGH": "glm-5.1" },
-      "data_analysis":    { "LOW": "glm-5",       "MEDIUM": "glm-5.1", "HIGH": "glm-5.1" },
-      "security":         { "LOW": "glm-5.1",     "MEDIUM": "glm-5.1", "HIGH": "glm-5.1" }
+      "coding_general":   { "LOW": "glm-5",   "MEDIUM": "glm-5.1", "HIGH": "glm-5.1" },
+      "coding_arch":      { "LOW": "glm-5.1", "MEDIUM": "glm-5.1", "HIGH": "glm-5.1" },
+      "korean_nlp":       { "LOW": "glm-5",   "MEDIUM": "glm-5",   "HIGH": "glm-5.1" },
+      "reasoning":        { "LOW": "glm-5",   "MEDIUM": "glm-5.1", "HIGH": "glm-5.1" },
+      "debugging":        { "LOW": "glm-5",   "MEDIUM": "glm-5.1", "HIGH": "glm-5.1" },
+      "content_creation": { "LOW": "glm-5",   "MEDIUM": "glm-5",   "HIGH": "glm-5.1" },
+      "data_analysis":    { "LOW": "glm-5",   "MEDIUM": "glm-5.1", "HIGH": "glm-5.1" },
+      "security":         { "LOW": "glm-5.1", "MEDIUM": "glm-5.1", "HIGH": "glm-5.1" }
     }
   },
 
