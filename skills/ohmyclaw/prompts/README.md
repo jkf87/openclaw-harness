@@ -60,9 +60,12 @@ case "$AUTH_TYPE" in
   api_key)     export ZAI_API_KEY="${!AUTH_VAL}" ;;
 esac
 
-bash pty:true workdir:"$PROJECT" command:"
-  openclaw exec --model=$MODEL --prompt=$PROMPT '<task>'
-"
+# 에이전트가 직접 실행 (기본 — sub-agent spawn 불필요)
+# → 해당 prompt 의 <execution_loop> 를 읽고 직접 따릅니다.
+# 병렬/background 필요 시에만 CLI spawn:
+bash pty:true workdir:"$PROJECT" background:true command:"codex exec --full-auto '<task>'"
+# 또는: claude --permission-mode bypassPermissions --print '<task>'
+# 또는: pi --provider zai --model $MODEL '<task>'
 
 # 4. 실패 시 cooldown + 다음 계정으로 재시도
 [[ $? -ne 0 ]] && $SKILL/pool.sh cooldown "$ID"

@@ -315,7 +315,7 @@ case "$AUTH_TYPE" in
   oauth_zai)
     # OpenClaw profile 사용
     openclaw-profile activate "$AUTH_VALUE"
-    bash pty:true command:"openclaw exec --model=$MODEL '$TASK'"
+    bash pty:true command:"pi --provider zai --model $MODEL '$TASK'"
     ;;
   oauth_codex)
     # CODEX_HOME 분리
@@ -324,7 +324,7 @@ case "$AUTH_TYPE" in
   api_key)
     # 환경변수 주입
     export ZAI_API_KEY="${!AUTH_VALUE}"
-    bash pty:true command:"openclaw exec --model=$MODEL '$TASK'"
+    bash pty:true command:"pi --provider zai --model $MODEL '$TASK'"
     ;;
 esac
 
@@ -354,7 +354,7 @@ SKILL/pool.sh fanout zai | while IFS='|' read -r id authType authValue plan weig
     case '$authType' in
       oauth_zai) openclaw-profile activate '$authValue' ;;
     esac
-    openclaw exec --model=glm-5.1 '$TASK' --tag=$id
+    pi --provider zai --model glm-5.1 '$TASK'
   "
 done
 
@@ -418,31 +418,63 @@ CODEX_OAUTH_ENABLED=true skills/ohmyclaw/pool.sh status codex
 
 ### 7-2. Spawn 패턴 (모든 동사 공통)
 
+ohmyclaw 는 기본적으로 **에이전트가 직접 실행** 합니다 (sub-agent spawn 없이). 라우터로 모델을 결정하고, 직접 코드를 읽고 쓰면서 해당 prompt 의 instructions 를 따릅니다.
+
+#### 직접 실행 (기본 — 권장)
+
 ```bash
 SKILL=skills/ohmyclaw
-PROMPT=$SKILL/prompts/<role>.md    # 동사에 따라 결정
 
-# 1. 모델 결정
+# 1. 모델 결정 (어떤 모델이 적절한지 판단용 — 에이전트 자체가 실행)
 MODEL=$($SKILL/select-model.sh "$TASK" <category> --plan=$PLAN ${CODEX:+--codex})
+echo "추천 모델: $MODEL"
 
-# 2. 계정 결정 (round-robin)
+# 2. 에이전트가 직접 prompts/<role>.md 를 읽고 따릅니다
+# → Read prompts/executor.md 또는 prompts/reviewer.md 등
+# → 해당 prompt 의 <execution_loop> 대로 진행
+```
+
+에이전트가 직접 실행하므로 **ACP agent spawn 이 필요 없습니다**.
+
+#### Sub-agent spawn (병렬 작업 시 — codex/claude/pi CLI 사용)
+
+team 이나 ralph 처럼 병렬 또는 background 실행이 필요할 때만 CLI 를 spawn 합니다:
+
+```bash
+SKILL=skills/ohmyclaw
+MODEL=$($SKILL/select-model.sh "$TASK" auto --plan=$PLAN ${CODEX:+--codex})
+
+# Codex 로 spawn (PTY 필수)
+bash pty:true workdir:"$PROJECT" background:true command:"codex exec --full-auto '$TASK'"
+
+# Claude Code 로 spawn (PTY 불필요)
+bash workdir:"$PROJECT" background:true command:"claude --permission-mode bypassPermissions --print '$TASK'"
+
+# Pi 로 spawn (PTY 필수)
+bash pty:true workdir:"$PROJECT" background:true command:"pi '$TASK'"
+```
+
+어떤 CLI 를 쓸지는 **모델에 따라 결정**:
+- `glm-*` 모델 → `pi` (Z.ai provider 활성) 또는 `codex` (OpenAI compatible endpoint)
+- `gpt-5.4` 모델 → `codex` (Codex CLI + ChatGPT OAuth)
+
+#### 계정 풀 연동 (선택)
+
+```bash
+# 모델에 맞는 계정 선택 (round-robin)
 ACCT=$($SKILL/pool.sh next "$MODEL")
 ID=$(echo "$ACCT" | cut -d'|' -f1)
 AUTH_TYPE=$(echo "$ACCT" | cut -d'|' -f2)
 AUTH_VAL=$(echo "$ACCT" | cut -d'|' -f3)
 
-# 3. 인증 적용 + spawn (PTY + workdir + background)
+# 인증 적용
 case "$AUTH_TYPE" in
   oauth_zai)   openclaw-profile activate "$AUTH_VAL" ;;
   oauth_codex) export CODEX_HOME="$AUTH_VAL" ;;
   api_key)     export ZAI_API_KEY="${!AUTH_VAL}" ;;
 esac
 
-bash pty:true workdir:"$PROJECT" background:true command:"
-  openclaw exec --model=$MODEL --prompt=$PROMPT '$TASK'
-"
-
-# 4. 실패 → cooldown + 재시도
+# 실패 시 cooldown + 다음 계정
 [[ $? -ne 0 ]] && $SKILL/pool.sh cooldown "$ID"
 ```
 
