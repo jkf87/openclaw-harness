@@ -313,6 +313,188 @@ Claude Code `~/.claude/settings.json` (Pro 기준):
 
 > ⚠️ **Lite 플랜**: `OPUS_MODEL` 을 `glm-5` 로 변경 (GLM-5.1 미포함).
 
+## ChatGPT Codex OAuth 연동 (상세)
+
+**선택 사항입니다.** Z.ai 단독으로도 충분히 동작합니다. 다만 **ChatGPT Plus($20/월) 또는 Pro($200/월)** 구독을 이미 보유했다면, OpenAI Codex CLI의 OAuth를 활용해서 GPT-5.3 Codex를 **추가 비용 없이** 고난도 코딩/보안 태스크에 병행 사용할 수 있습니다. 라우팅 엔진이 `codex_overlay` 규칙에 따라 자동으로 분배합니다.
+
+### 사전 조건
+
+| 항목 | 확인 방법 |
+|------|-----------|
+| ChatGPT Plus/Pro 구독 | https://chat.openai.com/#settings/Subscription |
+| Node.js 18+ 또는 Homebrew | `node -v` / `brew --version` |
+| 브라우저 접근 가능 | OAuth 콜백 수신용 (localhost) |
+
+### 1단계 — Codex CLI 설치
+
+macOS (Homebrew 권장):
+```bash
+brew install codex
+```
+
+또는 npm (크로스 플랫폼):
+```bash
+npm install -g @openai/codex
+```
+
+설치 확인:
+```bash
+codex --version
+# codex 0.x.x
+```
+
+### 2단계 — OAuth 로그인 (메인 계정)
+
+```bash
+codex login
+```
+
+진행 흐름:
+
+1. 터미널에 `Opening browser for authentication...` 메시지가 뜨고 자동으로 브라우저가 열립니다.
+2. ChatGPT 로그인 페이지로 리다이렉트 → 구독 계정으로 로그인.
+3. **"Authorize Codex CLI"** 권한 요청 화면에서 **Allow** 클릭.
+4. `http://localhost:1455/success` 페이지가 뜨면 성공. 터미널로 돌아가면 `✓ Logged in as <email>` 이 표시됩니다.
+5. 인증 토큰은 `~/.codex/auth.json` 에 저장됩니다 (평문 JSON, 파일 권한 600).
+
+검증:
+```bash
+codex whoami
+# Logged in as your@email.com (subscription: plus)
+
+ls -la ~/.codex/auth.json
+# -rw-------  1 user  staff  ... auth.json
+```
+
+### 3단계 — (선택) 두 번째 계정 추가
+
+여러 계정으로 rate limit을 분산하고 싶다면 `CODEX_HOME` 환경변수로 별도 디렉토리에 로그인하세요:
+
+```bash
+# 새 디렉토리에서 두 번째 계정으로 로그인
+CODEX_HOME=~/.codex-acct2 codex login
+
+# 검증
+CODEX_HOME=~/.codex-acct2 codex whoami
+ls ~/.codex-acct2/auth.json
+```
+
+> 💡 **팀에서 공용 사용 시**: 각자 개인 계정으로 `~/.codex` 에 로그인하고, 본 하네스가 `accounts.yaml` round-robin 으로 분산합니다. 한 계정을 여러 명이 공유하면 OpenAI 약관 위반이 될 수 있으니 피해 주세요.
+
+### 4단계 — 하네스 계정 풀 활성화
+
+`routing/accounts.yaml` 의 Codex 풀 항목을 **`enabled: true`** 로 변경:
+
+```yaml
+pools:
+  codex:
+    base_url: https://api.openai.com/v1
+    strategy: round_robin
+    optional: true
+    accounts:
+      - id: codex-primary
+        auth_type: oauth_codex
+        codex_home: ~/.codex
+        weight: 10
+        enabled: true          # ← false에서 true로 변경
+
+      # 두 번째 계정이 있다면:
+      - id: codex-secondary
+        auth_type: oauth_codex
+        codex_home: ~/.codex-acct2
+        weight: 10
+        enabled: true          # ← 두 번째 계정도 true
+```
+
+### 5단계 — 라우팅 엔진에 Codex 알리기
+
+두 가지 방법 중 하나:
+
+**A) 스크립트로 (권장):**
+```bash
+bash scripts/switch-plan.sh pro --with-codex
+```
+
+**B) 수동으로 `routing/plans.yaml` 편집:**
+```yaml
+active_plan: pro
+codex_oauth_enabled: true    # ← false에서 true로
+```
+
+### 6단계 — 동작 확인
+
+`doctor.sh` 로 전체 상태 점검:
+```bash
+bash scripts/doctor.sh
+```
+
+기대 출력:
+```
+[4/7] 인증 자격 검사
+  ✓ Z.ai API 키 (ZAI_API_KEY 설정됨)
+  ✓ Codex OAuth (~/.codex/auth.json 존재)
+  ✓ Codex OAuth 보조 계정 (~/.codex-acct2/auth.json)   ← 추가 계정 있을 때
+```
+
+라우팅 시뮬레이션 (아키텍처 HIGH 태스크가 Codex로 가는지 확인):
+```bash
+CODEX_OAUTH_ENABLED=true bash scripts/route-task.sh \
+  "전체 인증 시스템 마이그레이션 설계 OAuth JWT 보안 감사" coding_arch
+
+# 기대:
+#   model: gpt-5.3-codex
+#   fallback_chain: [gpt-5.3-codex, glm-5.1, glm-5, glm-5-turbo]
+```
+
+### Codex 오버레이 동작표
+
+`codex_oauth_enabled: true` 일 때 아래 슬롯만 GPT-5.3 Codex로 오버레이됩니다. 나머지는 그대로 GLM 시리즈가 담당합니다.
+
+| 카테고리 | 복잡도 | Z.ai 단독 | + Codex OAuth |
+|----------|--------|-----------|---------------|
+| coding_arch | MEDIUM / HIGH | glm-5.1 | **gpt-5.3-codex** |
+| coding_general | HIGH | glm-5.1 | **gpt-5.3-codex** |
+| debugging | HIGH | glm-5.1 | **gpt-5.3-codex** |
+| security | MEDIUM / HIGH | glm-5.1 | **gpt-5.3-codex** |
+| korean_nlp / content | 전부 | GLM 시리즈 | (그대로 GLM) |
+| reasoning / data | 전부 | GLM 시리즈 | (그대로 GLM) |
+
+Codex 동시 워커는 rate limit 보호를 위해 **최대 3개** 로 제한됩니다 (`pipelines.yaml#concurrency.rules`).
+
+### 트러블슈팅
+
+| 증상 | 원인 | 해결 |
+|------|------|------|
+| `codex: command not found` | CLI 미설치 | `brew install codex` 또는 `npm i -g @openai/codex` |
+| 브라우저가 안 열림 (SSH/원격) | 로컬 콜백 URL 접근 불가 | `codex login --no-browser` 후 출력된 URL을 로컬 브라우저에 붙여넣고, 받은 코드를 터미널에 입력 |
+| `Error: No subscription found` | Free 계정으로 로그인 | Plus/Pro 구독 결제 후 재시도 |
+| `auth.json` 이 생성되지 않음 | 권한 부족 또는 SIP 차단 | `mkdir -p ~/.codex && chmod 700 ~/.codex` 후 재로그인 |
+| `401 Unauthorized` 가 간헐적으로 발생 | OAuth 토큰 만료 (30일) | `codex login` 재실행 (refresh token 자동 갱신) |
+| Rate limit 초과 경고 | 단일 계정 과도 사용 | 2단계로 돌아가 두 번째 계정 추가, `accounts.yaml` 에서 `weight` 조정 |
+| Codex가 라우팅에 안 잡힘 | `plans.yaml#codex_oauth_enabled: false` | `bash scripts/switch-plan.sh <plan> --with-codex` |
+| `doctor.sh` 에서 `✗ Codex OAuth` | `~/.codex/auth.json` 없음 또는 읽기 불가 | `codex whoami` 로 확인, 실패 시 재로그인 |
+
+### 로그아웃 / 계정 교체
+
+```bash
+# 현재 계정 로그아웃
+codex logout
+
+# 수동으로 토큰 삭제 (문제 발생 시)
+rm ~/.codex/auth.json
+# 두 번째 계정:
+rm ~/.codex-acct2/auth.json
+
+# 로그아웃 후 하네스에서도 비활성화
+bash scripts/switch-plan.sh pro        # --with-codex 없이 실행
+```
+
+### 보안 참고
+
+- `~/.codex/auth.json` 은 평문 refresh token을 포함합니다. **절대 git 에 커밋하지 마세요.** (하네스는 `.gitignore` 로 보호)
+- 공용 머신에서 사용했다면 작업 후 `codex logout` 실행 권장.
+- 토큰 탈취 의심 시: ChatGPT 설정 → **Security → Sessions** 에서 모든 세션 강제 종료 가능.
+
 ## 설치
 
 ```bash
