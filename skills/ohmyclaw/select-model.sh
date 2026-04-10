@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# zai-coding-plan skill — model router (jq-based, deterministic)
+# ohmyclaw skill — model router (jq-based, deterministic)
 #
 # Usage:
 #   select-model.sh <task-text> [category] [--plan=lite|pro|max] [--codex] [--json]
