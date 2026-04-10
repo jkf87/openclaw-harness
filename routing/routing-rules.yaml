@@ -61,17 +61,23 @@ routing_matrix:
 # ──────────────────────────────────────────────
 codex_overlay:
   enabled_when: "codex_oauth_enabled == true"
+  # GPT-5.4 Codex는 reasoning_score=97 로 GLM-5.1(95)보다 소폭 우위.
+  # extended_thinking 이 필요한 슬롯을 우선 오버레이한다.
   overrides:
     coding_arch:
-      HIGH: gpt-5.3-codex
-      MEDIUM: gpt-5.3-codex
+      HIGH: gpt-5.4-codex
+      MEDIUM: gpt-5.4-codex
     coding_general:
-      HIGH: gpt-5.3-codex
+      HIGH: gpt-5.4-codex
     debugging:
-      HIGH: gpt-5.3-codex
+      HIGH: gpt-5.4-codex
     security:
-      HIGH: gpt-5.3-codex
-      MEDIUM: gpt-5.3-codex
+      HIGH: gpt-5.4-codex
+      MEDIUM: gpt-5.4-codex
+    reasoning:                         # 🆕 추론 카테고리도 오버레이
+      HIGH: gpt-5.4-codex              # GPT-5.4 Codex 의 extended thinking 활용
+    data_analysis:                     # 🆕 수학/추론 필요한 분석
+      HIGH: gpt-5.4-codex
 
 # ──────────────────────────────────────────────
 # 우선순위 규칙 엔진 (first-match)
@@ -100,11 +106,23 @@ routing_rules:
     action: glm-5
     description: "한국어 혼합은 GLM-5"
 
+  - priority: 82
+    name: reasoning_heavy_codex
+    condition: "codex_oauth_enabled AND reasoning_heavy == true AND complexity_tier == HIGH"
+    action: gpt-5.4-codex
+    description: "추론 집약(수학/논리/알고리즘) + Codex 활성 시 GPT-5.4 Codex 의 extended thinking 활용"
+
+  - priority: 81
+    name: reasoning_heavy_glm
+    condition: "reasoning_heavy == true AND active_plan in [pro, max] AND complexity_tier >= MEDIUM"
+    action: glm-5.1
+    description: "추론 집약 태스크는 reasoning_score 최상위 모델(glm-5.1) 사용"
+
   - priority: 80
     name: codex_high_priority
-    condition: "codex_oauth_enabled AND category in [coding_arch, security] AND complexity_tier == HIGH"
-    action: gpt-5.3-codex
-    description: "Codex OAuth 활성 시 고난도 아키텍처/보안은 GPT-5.3 Codex"
+    condition: "codex_oauth_enabled AND category in [coding_arch, security, reasoning, data_analysis] AND complexity_tier == HIGH"
+    action: gpt-5.4-codex
+    description: "Codex OAuth 활성 시 고난도 아키텍처/보안/추론/분석은 GPT-5.4 Codex"
 
   - priority: 75
     name: glm_advanced
@@ -147,6 +165,7 @@ signal_weights:
     file_paths_3: 2
     architecture_keywords: 3
     debugging_keywords: 2
+    reasoning_keywords: 3          # "증명", "알고리즘", "복잡도", "수학", "최적화", "정합성"
     simple_keywords: -2
 
   structural:
@@ -173,6 +192,51 @@ korean_detection:
     medium: 0.5
     high: 0.7
   coding_override: true
+
+# ──────────────────────────────────────────────
+# 추론 집약(reasoning-heavy) 감지 설정
+# ──────────────────────────────────────────────
+# reasoning_heavy == true 일 때 우선순위 규칙 P81/P82 가 활성화되어
+# reasoning_score 최상위 모델(glm-5.1 / gpt-5.4-codex)로 라우팅됩니다.
+reasoning_detection:
+  enabled: true
+  min_score: 2                   # 아래 신호 합산이 2 이상이면 heavy 로 판정
+  signals:
+    # 한국어 키워드
+    keywords_ko:
+      - "증명"
+      - "알고리즘"
+      - "복잡도"
+      - "수학"
+      - "최적화"
+      - "정합성"
+      - "상태 머신"
+      - "동형"
+      - "불변조건"
+      - "race condition"
+      - "분산 합의"
+      - "정렬 증명"
+    # 영문 키워드
+    keywords_en:
+      - "prove"
+      - "proof"
+      - "invariant"
+      - "complexity"
+      - "big-?o"
+      - "algorithm"
+      - "optimization"
+      - "theorem"
+      - "derive"
+      - "analyze.+tradeoff"
+      - "race condition"
+      - "distributed consensus"
+    # 카테고리 힌트
+    categories: [reasoning, coding_arch, data_analysis, security]
+    # 구조 힌트
+    structural:
+      cross_file_3plus: 1
+      subtask_5plus: 1
+      architecture_keywords_2plus: 1
 
 # ──────────────────────────────────────────────
 # 프롬프트 적응 (티어별)

@@ -244,23 +244,65 @@ cap_for_lite() {
     esac
 }
 
+# 추론 집약(reasoning-heavy) 태스크 감지
+# 반환: "true" | "false"
+detect_reasoning_heavy() {
+    local text="$1"
+    local category="$2"
+    local score=0
+
+    # 한국어 추론 키워드
+    if echo "$text" | grep -qE "(증명|알고리즘|복잡도|수학|최적화|정합성|상태 머신|불변조건|race condition|분산 합의|정렬 증명)"; then
+        score=$((score + 2))
+    fi
+    # 영문 추론 키워드
+    if echo "$text" | grep -qiE "(prove|proof|invariant|complexity|big-?o|algorithm|optimization|theorem|derive|tradeoff|race condition|distributed consensus)"; then
+        score=$((score + 2))
+    fi
+    # 카테고리 힌트 (reasoning/coding_arch/data_analysis/security)
+    case "$category" in
+        reasoning|coding_arch|data_analysis|security) score=$((score + 1)) ;;
+    esac
+
+    if [[ $score -ge 2 ]]; then echo "true"; else echo "false"; fi
+}
+
 resolve_model() {
     local category="$1"
     local tier="$2"
     local korean_ratio="$3"
+    local reasoning_heavy="${4:-false}"
     local plan codex_enabled
     plan="$(detect_active_plan)"
     codex_enabled="$(detect_codex_enabled)"
 
     local picked=""
 
-    # ── Codex OAuth 오버레이 (활성화 시 최우선) ──
-    if [[ "$codex_enabled" == "true" ]]; then
+    # ── P82: 추론 집약 + Codex 활성 → extended thinking ──
+    # 추론 집약은 복잡도 점수와 무관하게 모델을 격상한다 (짧지만 어려운 증명/알고리즘 태스크 대응)
+    if [[ -z "$picked" ]] && [[ "$codex_enabled" == "true" ]] && [[ "$reasoning_heavy" == "true" ]]; then
+        picked="gpt-5.4-codex"
+    fi
+
+    # ── P81: 추론 집약 + Pro/Max → glm-5.1 ──
+    if [[ -z "$picked" ]] && [[ "$reasoning_heavy" == "true" ]] && [[ "$plan" != "lite" ]]; then
+        picked="glm-5.1"
+    fi
+
+    # ── P81b: 추론 집약 + Lite → glm-5 (상한) ──
+    if [[ -z "$picked" ]] && [[ "$reasoning_heavy" == "true" ]] && [[ "$plan" == "lite" ]]; then
+        picked="glm-5"
+    fi
+
+    # ── Codex OAuth 오버레이 (활성화 시) ──
+    if [[ -z "$picked" ]] && [[ "$codex_enabled" == "true" ]]; then
         case "${category}_${tier}" in
-            coding_arch_HIGH|coding_arch_MEDIUM) picked="gpt-5.3-codex" ;;
-            coding_general_HIGH)                 picked="gpt-5.3-codex" ;;
-            debugging_HIGH)                      picked="gpt-5.3-codex" ;;
-            security_HIGH|security_MEDIUM)       picked="gpt-5.3-codex" ;;
+            coding_arch_HIGH|coding_arch_MEDIUM) picked="gpt-5.4-codex" ;;
+            coding_general_HIGH)                 picked="gpt-5.4-codex" ;;
+            debugging_HIGH)                      picked="gpt-5.4-codex" ;;
+            security_HIGH|security_MEDIUM)       picked="gpt-5.4-codex" ;;
+            reasoning_HIGH)                      picked="gpt-5.4-codex" ;;
+            data_analysis_HIGH)                  picked="gpt-5.4-codex" ;;
         esac
     fi
 
@@ -356,7 +398,7 @@ get_fallback_chain() {
     elif [[ "$codex_enabled" == "true" ]]; then
         case "$category" in
             coding_arch|coding_general|debugging|security)
-                raw_chain="${primary},gpt-5.3-codex,glm-5.1,glm-5,glm-5-turbo"
+                raw_chain="${primary},gpt-5.4-codex,glm-5.1,glm-5,glm-5-turbo"
                 ;;
             *)
                 raw_chain="${primary},glm-5.1,glm-5,glm-5-turbo"
@@ -409,15 +451,19 @@ main() {
     local complexity_tier
     complexity_tier=$(get_complexity_tier "$complexity_score")
 
-    # 4. 모델 결정
-    local model
-    model=$(resolve_model "$category" "$complexity_tier" "$korean_ratio")
+    # 4. 추론 집약 감지
+    local reasoning_heavy
+    reasoning_heavy=$(detect_reasoning_heavy "$TASK_TEXT" "$category")
 
-    # 5. 폴백 체인
+    # 5. 모델 결정
+    local model
+    model=$(resolve_model "$category" "$complexity_tier" "$korean_ratio" "$reasoning_heavy")
+
+    # 6. 폴백 체인
     local fallback_chain
     fallback_chain=$(get_fallback_chain "$category" "$model")
 
-    # 6. 결과 출력 (YAML)
+    # 7. 결과 출력 (YAML)
     cat <<EOF
 routing_decision:
   model: ${model}
@@ -425,9 +471,11 @@ routing_decision:
   complexity_score: ${complexity_score}
   complexity_tier: ${complexity_tier}
   korean_ratio: ${korean_ratio}
-  budget_profile: ${BUDGET_PROFILE}
+  reasoning_heavy: ${reasoning_heavy}
+  active_plan: $(detect_active_plan)
+  codex_oauth_enabled: $(detect_codex_enabled)
   fallback_chain: [$(echo "$fallback_chain" | sed 's/,/, /g')]
-  reason: "카테고리=${category}, 복잡도=${complexity_tier}(${complexity_score}점), 한국어=${korean_ratio}"
+  reason: "카테고리=${category}, 복잡도=${complexity_tier}(${complexity_score}점), 한국어=${korean_ratio}, 추론집약=${reasoning_heavy}"
 EOF
 }
 

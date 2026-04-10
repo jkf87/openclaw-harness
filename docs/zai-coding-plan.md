@@ -81,7 +81,7 @@ claude
 
 ## 5. OpenAI Codex OAuth 병행 (선택)
 
-ChatGPT Plus($20) / Pro($200) 구독을 보유했다면 Codex CLI OAuth로 GPT-5.3 Codex를 함께 사용할 수 있습니다. 라우팅 엔진은 고난도 아키텍처/보안 태스크를 Codex로 자동 분배합니다.
+ChatGPT Plus($20) / Pro($200) 구독을 보유했다면 Codex CLI OAuth로 GPT-5.4 Codex를 함께 사용할 수 있습니다. 라우팅 엔진은 고난도 아키텍처/보안 태스크를 Codex로 자동 분배합니다.
 
 ### 5-1. Codex 로그인
 
@@ -120,14 +120,22 @@ codex_oauth_enabled: true
 
 | 카테고리 | 복잡도 | Z.ai 단독 | Z.ai + Codex |
 |----------|--------|-----------|---------------|
-| coding_arch | HIGH | glm-5.1 | **gpt-5.3-codex** |
-| coding_arch | MEDIUM | glm-5.1 | **gpt-5.3-codex** |
-| security    | HIGH | glm-5.1 | **gpt-5.3-codex** |
-| security    | MEDIUM | glm-5.1 | **gpt-5.3-codex** |
-| coding_general | HIGH | glm-5.1 | **gpt-5.3-codex** |
-| debugging   | HIGH | glm-5.1 | **gpt-5.3-codex** |
+| coding_arch | HIGH | glm-5.1 | **gpt-5.4-codex** |
+| coding_arch | MEDIUM | glm-5.1 | **gpt-5.4-codex** |
+| security    | HIGH | glm-5.1 | **gpt-5.4-codex** |
+| security    | MEDIUM | glm-5.1 | **gpt-5.4-codex** |
+| coding_general | HIGH | glm-5.1 | **gpt-5.4-codex** |
+| debugging   | HIGH | glm-5.1 | **gpt-5.4-codex** |
+| **reasoning** | HIGH | glm-5.1 | **gpt-5.4-codex** 🧠 |
+| **data_analysis** | HIGH | glm-5.1 | **gpt-5.4-codex** 🧠 |
 
-나머지(한국어 NLP, 콘텐츠, 일반 추론)는 그대로 GLM 시리즈가 담당합니다.
+추가로 태스크 텍스트에 **추론 집약 신호**(증명/알고리즘/복잡도/불변조건/race condition/distributed consensus 등)가 감지되면, 카테고리와 무관하게 `reasoning_score` 최상위 모델로 라우팅됩니다:
+
+- Codex 활성 + HIGH → **GPT-5.4 Codex** (reasoning_score 97, extended thinking)
+- Pro/Max (Codex 없음) → **GLM-5.1** (reasoning_score 95)
+- Lite → GLM-5 (상한)
+
+나머지(한국어 NLP, 콘텐츠)는 그대로 GLM 시리즈가 담당합니다.
 
 ## 6. 동작 확인
 

@@ -102,16 +102,16 @@ plans:
 # Codex OAuth 병행 설정 (선택)
 # ──────────────────────────────────────────────
 codex_oauth:
-  description: "ChatGPT Plus($20)/Pro($200) 구독 보유 시 Codex CLI OAuth로 GPT-5.3 Codex 사용"
+  description: "ChatGPT Plus($20)/Pro($200) 구독 보유 시 Codex CLI OAuth로 GPT-5.4 Codex 사용"
   setup:
     - "1) `codex login` 실행 (~/.codex 또는 CODEX_HOME)"
     - "2) routing/accounts.yaml 의 codex 풀에 codex_home 등록"
     - "3) 본 파일 codex_oauth_enabled: true"
   routing_priority:
     # Codex OAuth 활성 시 코딩/보안 카테고리에서 GPT-5.3 우선
-    coding_arch_HIGH: gpt-5.3-codex
-    security_HIGH: gpt-5.3-codex
-    coding_general_HIGH: gpt-5.3-codex
+    coding_arch_HIGH: gpt-5.4-codex
+    security_HIGH: gpt-5.4-codex
+    coding_general_HIGH: gpt-5.4-codex
   concurrency:
     max_workers: 3                    # ChatGPT 구독 rate limit 고려
 

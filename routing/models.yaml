@@ -73,33 +73,41 @@ models:
       - security_audit
       - korean_native
       - long_context
+      - extended_thinking
     weaknesses: [higher_latency, lite_plan_excluded]
     korean_score: 96
     coding_score: 95
     reasoning_score: 95
+    reasoning_mode: true              # 확장 사고(extended thinking) 지원
     plans: [pro, max]                 # ⚠️ Lite 플랜에서는 사용 불가
     anthropic_alias: opus
 
   # ════════════════════════════════════════════════
   # OpenAI Codex (선택) — ChatGPT Plus/Pro OAuth
+  # GPT-5.4 Codex = 최신 플래그십. extended thinking 강화,
+  # 코딩/디버깅/보안/수학 추론에서 GLM-5.1 동급 이상.
   # ════════════════════════════════════════════════
-  gpt-5.3-codex:
+  gpt-5.4-codex:
     provider: openai-codex
-    display_name: "GPT-5.3 Codex"
+    display_name: "GPT-5.4 Codex"
     tier: HIGH
     cost_per_1k_input: 0              # ChatGPT 구독 정액
     cost_per_1k_output: 0
-    max_context: 200000
+    max_context: 256000
     strengths:
       - code_generation
       - debugging
       - refactoring
       - architecture_design
       - security_audit
+      - advanced_reasoning
+      - extended_thinking
+      - math_reasoning
     weaknesses: [korean_generation_mid]
-    korean_score: 70
-    coding_score: 95
-    reasoning_score: 92
+    korean_score: 72
+    coding_score: 97
+    reasoning_score: 97               # GPT-5.4는 extended thinking 특화
+    reasoning_mode: true
     auth: oauth_codex                 # codex login (CODEX_HOME)
     optional: true                    # Z.ai 단독 사용도 OK
     plans: [oauth]

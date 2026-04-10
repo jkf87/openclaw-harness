@@ -133,7 +133,7 @@ concurrency:
       max_workers: 5
     - if: "model == glm-5.1"
       max_workers: 3              # HIGH 모델은 보수적
-    - if: "model == gpt-5.3-codex AND codex_oauth_enabled"
+    - if: "model == gpt-5.4-codex AND codex_oauth_enabled"
       max_workers: 3              # ChatGPT 구독 rate limit 보호
 
 # ──────────────────────────────────────────────
