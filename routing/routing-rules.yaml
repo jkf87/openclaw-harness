@@ -61,23 +61,23 @@ routing_matrix:
 # ──────────────────────────────────────────────
 codex_overlay:
   enabled_when: "codex_oauth_enabled == true"
-  # GPT-5.4 Codex는 reasoning_score=97 로 GLM-5.1(95)보다 소폭 우위.
+  # GPT-5.4는 reasoning_score=97 로 GLM-5.1(95)보다 소폭 우위.
   # extended_thinking 이 필요한 슬롯을 우선 오버레이한다.
   overrides:
     coding_arch:
-      HIGH: gpt-5.4-codex
-      MEDIUM: gpt-5.4-codex
+      HIGH: gpt-5.4
+      MEDIUM: gpt-5.4
     coding_general:
-      HIGH: gpt-5.4-codex
+      HIGH: gpt-5.4
     debugging:
-      HIGH: gpt-5.4-codex
+      HIGH: gpt-5.4
     security:
-      HIGH: gpt-5.4-codex
-      MEDIUM: gpt-5.4-codex
+      HIGH: gpt-5.4
+      MEDIUM: gpt-5.4
     reasoning:                         # 🆕 추론 카테고리도 오버레이
-      HIGH: gpt-5.4-codex              # GPT-5.4 Codex 의 extended thinking 활용
+      HIGH: gpt-5.4              # GPT-5.4 의 extended thinking 활용
     data_analysis:                     # 🆕 수학/추론 필요한 분석
-      HIGH: gpt-5.4-codex
+      HIGH: gpt-5.4
 
 # ──────────────────────────────────────────────
 # 우선순위 규칙 엔진 (first-match)
@@ -109,8 +109,8 @@ routing_rules:
   - priority: 82
     name: reasoning_heavy_codex
     condition: "codex_oauth_enabled AND reasoning_heavy == true AND complexity_tier == HIGH"
-    action: gpt-5.4-codex
-    description: "추론 집약(수학/논리/알고리즘) + Codex 활성 시 GPT-5.4 Codex 의 extended thinking 활용"
+    action: gpt-5.4
+    description: "추론 집약(수학/논리/알고리즘) + Codex 활성 시 GPT-5.4 의 extended thinking 활용"
 
   - priority: 81
     name: reasoning_heavy_glm
@@ -121,8 +121,8 @@ routing_rules:
   - priority: 80
     name: codex_high_priority
     condition: "codex_oauth_enabled AND category in [coding_arch, security, reasoning, data_analysis] AND complexity_tier == HIGH"
-    action: gpt-5.4-codex
-    description: "Codex OAuth 활성 시 고난도 아키텍처/보안/추론/분석은 GPT-5.4 Codex"
+    action: gpt-5.4
+    description: "Codex OAuth 활성 시 고난도 아키텍처/보안/추론/분석은 GPT-5.4"
 
   - priority: 75
     name: glm_advanced
@@ -197,7 +197,7 @@ korean_detection:
 # 추론 집약(reasoning-heavy) 감지 설정
 # ──────────────────────────────────────────────
 # reasoning_heavy == true 일 때 우선순위 규칙 P81/P82 가 활성화되어
-# reasoning_score 최상위 모델(glm-5.1 / gpt-5.4-codex)로 라우팅됩니다.
+# reasoning_score 최상위 모델(glm-5.1 / gpt-5.4)로 라우팅됩니다.
 reasoning_detection:
   enabled: true
   min_score: 2                   # 아래 신호 합산이 2 이상이면 heavy 로 판정

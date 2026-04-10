@@ -77,4 +77,4 @@ cost_reference:
   glm-5-turbo:    { input_per_1k: 0, output_per_1k: 0, billing: zai_subscription }
   glm-5:          { input_per_1k: 0, output_per_1k: 0, billing: zai_subscription }
   glm-5.1:        { input_per_1k: 0, output_per_1k: 0, billing: zai_subscription }
-  gpt-5.4-codex:  { input_per_1k: 0, output_per_1k: 0, billing: chatgpt_subscription }
+  gpt-5.4:  { input_per_1k: 0, output_per_1k: 0, billing: chatgpt_subscription }

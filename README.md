@@ -12,7 +12,7 @@
 - **🧭 멀티티어 모델 라우팅** — Z.ai 코딩플랜 **Lite/Pro/Max** 인식, 플랜이 허용한 모델만 자동 선택
 - **🇰🇷 한국어 최적화** — 한국어 감지 시 GLM 시리즈 우선
 - **🆕 GLM-5.1 지원** — Pro/Max 플랜에서 자동 활성
-- **🔌 Codex OAuth 병행 (선택)** — ChatGPT Plus/Pro 구독으로 GPT-5.4 Codex를 고난도 코딩/보안에 오버레이
+- **🔌 Codex OAuth 병행 (선택)** — ChatGPT Plus/Pro 구독으로 GPT-5.4를 고난도 코딩/보안에 오버레이
 
 ## 아키텍처
 
@@ -56,9 +56,9 @@
 | 에이전트 | 역할 | 권한 | Lite | Pro | Max | + Codex OAuth |
 |---------|------|------|------|-----|-----|---------------|
 | **planner** | 계획 수립 | read-only | glm-5 | glm-5.1 | glm-5.1 | glm-5.1 |
-| **worker** | 코드 구현 | read+write+exec | glm-5 | glm-5.1 | glm-5.1 | gpt-5.4-codex (HIGH) |
+| **worker** | 코드 구현 | read+write+exec | glm-5 | glm-5.1 | glm-5.1 | gpt-5.4 (HIGH) |
 | **reviewer** | 5관점 리뷰 + 갭 감지 | read-only | glm-5 | glm-5.1 | glm-5.1 | glm-5.1 |
-| **debugger** | 체계적 디버깅 | read+exec | glm-5 | glm-5 | glm-5.1 | gpt-5.4-codex (HIGH) |
+| **debugger** | 체계적 디버깅 | read+exec | glm-5 | glm-5 | glm-5.1 | gpt-5.4 (HIGH) |
 
 ## Reviewer 5관점
 
@@ -145,11 +145,11 @@ bash scripts/switch-plan.sh pro --with-codex
 | **GLM-5 Turbo** | LOW | 128K | 70 | 60 | 95 | ✅ | ✅ | ✅ |
 | **GLM-5** | MEDIUM | 128K | 88 | 82 | 95 | ✅ | ✅ | ✅ |
 | **GLM-5.1** ⚡ | HIGH | 204.8K | 95 | **95** | 96 | ❌ | ✅ | ✅ |
-| **GPT-5.4 Codex** ⚡ *(선택)* | HIGH | 256K | **97** | **97** | 72 | OAuth | OAuth | OAuth |
+| **GPT-5.4** ⚡ *(선택)* | HIGH | 256K | **97** | **97** | 72 | OAuth | OAuth | OAuth |
 
 ⚡ = extended thinking (reasoning_mode) 지원. 숫자는 0–100 상대 점수.
 
-> 💡 GPT-5.4 Codex는 ChatGPT Plus/Pro 구독을 보유한 경우 **Codex OAuth** 로 무료 병행 사용이 가능합니다. GLM-5.1 보다 소폭 강한 extended thinking 을 제공하므로 추론 집약 태스크(알고리즘 증명, 분산 시스템, 보안 분석)에 특히 유리합니다 (자세한 내용은 [docs/zai-coding-plan.md](docs/zai-coding-plan.md)).
+> 💡 GPT-5.4는 ChatGPT Plus/Pro 구독을 보유한 경우 **Codex OAuth** 로 무료 병행 사용이 가능합니다. GLM-5.1 보다 소폭 강한 extended thinking 을 제공하므로 추론 집약 태스크(알고리즘 증명, 분산 시스템, 보안 분석)에 특히 유리합니다 (자세한 내용은 [docs/zai-coding-plan.md](docs/zai-coding-plan.md)).
 
 ### 라우팅 매트릭스 (Pro 기준)
 
@@ -165,7 +165,7 @@ bash scripts/switch-plan.sh pro --with-codex
 
 **Lite 플랜**: HIGH 슬롯이 모두 GLM-5로 자동 강등됩니다.
 **Max 플랜**: MEDIUM 코딩/리뷰도 적극적으로 GLM-5.1을 사용합니다.
-**Codex OAuth 활성**: 코딩(아키텍처/일반 HIGH), 디버깅(HIGH), 보안(MEDIUM/HIGH), **추론(HIGH), 데이터 분석(HIGH)** 이 GPT-5.4 Codex로 오버레이됩니다.
+**Codex OAuth 활성**: 코딩(아키텍처/일반 HIGH), 디버깅(HIGH), 보안(MEDIUM/HIGH), **추론(HIGH), 데이터 분석(HIGH)** 이 GPT-5.4로 오버레이됩니다.
 
 ### 🧠 추론 집약 감지
 
@@ -178,7 +178,7 @@ bash scripts/switch-plan.sh pro --with-codex
 **분기:**
 | 조건 | 선택 모델 | reasoning_score |
 |------|-----------|-----------------|
-| reasoning_heavy + Codex 활성 + HIGH | **GPT-5.4 Codex** | 97 |
+| reasoning_heavy + Codex 활성 + HIGH | **GPT-5.4** | 97 |
 | reasoning_heavy + Pro/Max + MEDIUM 이상 | **GLM-5.1** | 95 |
 | reasoning_heavy + Lite | GLM-5 (상한) | 82 |
 
@@ -188,9 +188,9 @@ bash scripts/switch-plan.sh pro --with-codex
 2. **P95** — 활성 플랜 미허용 모델 자동 강등 (예: Lite의 glm-5.1 → glm-5)
 3. **P90** — 한국어 비율 >70% + NLP/콘텐츠 → GLM 시리즈 우선
 4. **P85** — 한국어 혼합(>50%) → GLM-5
-5. **P82** — 🧠 추론 집약 + Codex 활성 + HIGH → **GPT-5.4 Codex** (extended thinking)
+5. **P82** — 🧠 추론 집약 + Codex 활성 + HIGH → **GPT-5.4** (extended thinking)
 6. **P81** — 🧠 추론 집약 + Pro/Max + MEDIUM↑ → **GLM-5.1**
-7. **P80** — Codex OAuth 활성 + 고난도 아키텍처/보안/추론/분석 → GPT-5.4 Codex
+7. **P80** — Codex OAuth 활성 + 고난도 아키텍처/보안/추론/분석 → GPT-5.4
 8. **P75** — Pro/Max + HIGH 복잡도 → GLM-5.1
 9. **P70** — Lite + HIGH 복잡도 → GLM-5 (상한)
 10. **P60** — 표준 코딩/디버깅 → GLM-5
@@ -209,10 +209,10 @@ bash scripts/switch-plan.sh pro --with-codex
 
 | 용도 | Lite | Pro / Max | + Codex OAuth |
 |------|------|-----------|----------------|
-| 코딩 | glm-5 → glm-5-turbo | glm-5.1 → glm-5 → glm-5-turbo | gpt-5.4-codex → glm-5.1 → glm-5 |
+| 코딩 | glm-5 → glm-5-turbo | glm-5.1 → glm-5 → glm-5-turbo | gpt-5.4 → glm-5.1 → glm-5 |
 | 한국어 | glm-5 → glm-5-turbo | glm-5.1 → glm-5 → glm-5-turbo | (동일) |
 | 추론 | glm-5 → glm-5-turbo | glm-5.1 → glm-5 → glm-5-turbo | (동일) |
-| 보안 | glm-5 | glm-5.1 → glm-5 | gpt-5.4-codex → glm-5.1 |
+| 보안 | glm-5 | glm-5.1 → glm-5 | gpt-5.4 → glm-5.1 |
 
 ## 예산 프로파일 (코딩플랜 정액제 기반)
 
@@ -235,7 +235,7 @@ Z.ai 코딩플랜은 정액제이므로 비용 대신 **토큰/요청 quota**를
 | `parallel` | 독립 태스크 2~3개 | Work(병렬) → Review | 3 |
 | `full` | 태스크 4개+ or 의존성 있음 or 고복잡도 | Plan → Work(병렬) → Review | 5 |
 
-**동시 실행:** 활성 플랜 기준 — Lite 2 / Pro 4 / Max 7. 모델별 추가 상한은 GLM-5-turbo 7, GLM-5 5, GLM-5.1 3, GPT-5.4 Codex 3 (min 적용).
+**동시 실행:** 활성 플랜 기준 — Lite 2 / Pro 4 / Max 7. 모델별 추가 상한은 GLM-5-turbo 7, GLM-5 5, GLM-5.1 3, GPT-5.4 3 (min 적용).
 
 ### 상태 머신
 
@@ -334,7 +334,7 @@ Claude Code `~/.claude/settings.json` (Pro 기준):
 
 ## ChatGPT Codex OAuth 연동 (상세)
 
-**선택 사항입니다.** Z.ai 단독으로도 충분히 동작합니다. 다만 **ChatGPT Plus($20/월) 또는 Pro($200/월)** 구독을 이미 보유했다면, OpenAI Codex CLI의 OAuth를 활용해서 GPT-5.4 Codex를 **추가 비용 없이** 고난도 코딩/보안 태스크에 병행 사용할 수 있습니다. 라우팅 엔진이 `codex_overlay` 규칙에 따라 자동으로 분배합니다.
+**선택 사항입니다.** Z.ai 단독으로도 충분히 동작합니다. 다만 **ChatGPT Plus($20/월) 또는 Pro($200/월)** 구독을 이미 보유했다면, OpenAI Codex CLI의 OAuth를 활용해서 GPT-5.4를 **추가 비용 없이** 고난도 코딩/보안 태스크에 병행 사용할 수 있습니다. 라우팅 엔진이 `codex_overlay` 규칙에 따라 자동으로 분배합니다.
 
 ### 사전 조건
 
@@ -461,25 +461,25 @@ CODEX_OAUTH_ENABLED=true bash scripts/route-task.sh \
   "전체 인증 시스템 마이그레이션 설계 OAuth JWT 보안 감사" coding_arch
 
 # 기대:
-#   model: gpt-5.4-codex
-#   fallback_chain: [gpt-5.4-codex, glm-5.1, glm-5, glm-5-turbo]
+#   model: gpt-5.4
+#   fallback_chain: [gpt-5.4, glm-5.1, glm-5, glm-5-turbo]
 ```
 
 ### Codex 오버레이 동작표
 
-`codex_oauth_enabled: true` 일 때 아래 슬롯만 GPT-5.4 Codex로 오버레이됩니다. 나머지는 그대로 GLM 시리즈가 담당합니다.
+`codex_oauth_enabled: true` 일 때 아래 슬롯만 GPT-5.4로 오버레이됩니다. 나머지는 그대로 GLM 시리즈가 담당합니다.
 
 | 카테고리 | 복잡도 | Z.ai 단독 | + Codex OAuth |
 |----------|--------|-----------|---------------|
-| coding_arch | MEDIUM / HIGH | glm-5.1 | **gpt-5.4-codex** |
-| coding_general | HIGH | glm-5.1 | **gpt-5.4-codex** |
-| debugging | HIGH | glm-5.1 | **gpt-5.4-codex** |
-| security | MEDIUM / HIGH | glm-5.1 | **gpt-5.4-codex** |
-| **reasoning** | HIGH | glm-5.1 | **gpt-5.4-codex** 🧠 |
-| **data_analysis** | HIGH | glm-5.1 | **gpt-5.4-codex** 🧠 |
+| coding_arch | MEDIUM / HIGH | glm-5.1 | **gpt-5.4** |
+| coding_general | HIGH | glm-5.1 | **gpt-5.4** |
+| debugging | HIGH | glm-5.1 | **gpt-5.4** |
+| security | MEDIUM / HIGH | glm-5.1 | **gpt-5.4** |
+| **reasoning** | HIGH | glm-5.1 | **gpt-5.4** 🧠 |
+| **data_analysis** | HIGH | glm-5.1 | **gpt-5.4** 🧠 |
 | korean_nlp / content | 전부 | GLM 시리즈 | (그대로 GLM — 한국어 우선) |
 
-🧠 = extended thinking (reasoning_score 97) 활용. 추론 집약 신호가 감지되면 카테고리와 무관하게 GPT-5.4 Codex 로 라우팅됩니다.
+🧠 = extended thinking (reasoning_score 97) 활용. 추론 집약 신호가 감지되면 카테고리와 무관하게 GPT-5.4 로 라우팅됩니다.
 
 Codex 동시 워커는 rate limit 보호를 위해 **최대 3개** 로 제한됩니다 (`pipelines.yaml#concurrency.rules`).
 

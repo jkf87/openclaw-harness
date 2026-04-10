@@ -84,12 +84,12 @@ models:
 
   # ════════════════════════════════════════════════
   # OpenAI Codex (선택) — ChatGPT Plus/Pro OAuth
-  # GPT-5.4 Codex = 최신 플래그십. extended thinking 강화,
+  # GPT-5.4 = 최신 플래그십. extended thinking 강화,
   # 코딩/디버깅/보안/수학 추론에서 GLM-5.1 동급 이상.
   # ════════════════════════════════════════════════
-  gpt-5.4-codex:
+  gpt-5.4:
     provider: openai-codex
-    display_name: "GPT-5.4 Codex"
+    display_name: "GPT-5.4"
     tier: HIGH
     cost_per_1k_input: 0              # ChatGPT 구독 정액
     cost_per_1k_output: 0

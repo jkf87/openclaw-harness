@@ -281,7 +281,7 @@ resolve_model() {
     # ── P82: 추론 집약 + Codex 활성 → extended thinking ──
     # 추론 집약은 복잡도 점수와 무관하게 모델을 격상한다 (짧지만 어려운 증명/알고리즘 태스크 대응)
     if [[ -z "$picked" ]] && [[ "$codex_enabled" == "true" ]] && [[ "$reasoning_heavy" == "true" ]]; then
-        picked="gpt-5.4-codex"
+        picked="gpt-5.4"
     fi
 
     # ── P81: 추론 집약 + Pro/Max → glm-5.1 ──
@@ -297,12 +297,12 @@ resolve_model() {
     # ── Codex OAuth 오버레이 (활성화 시) ──
     if [[ -z "$picked" ]] && [[ "$codex_enabled" == "true" ]]; then
         case "${category}_${tier}" in
-            coding_arch_HIGH|coding_arch_MEDIUM) picked="gpt-5.4-codex" ;;
-            coding_general_HIGH)                 picked="gpt-5.4-codex" ;;
-            debugging_HIGH)                      picked="gpt-5.4-codex" ;;
-            security_HIGH|security_MEDIUM)       picked="gpt-5.4-codex" ;;
-            reasoning_HIGH)                      picked="gpt-5.4-codex" ;;
-            data_analysis_HIGH)                  picked="gpt-5.4-codex" ;;
+            coding_arch_HIGH|coding_arch_MEDIUM) picked="gpt-5.4" ;;
+            coding_general_HIGH)                 picked="gpt-5.4" ;;
+            debugging_HIGH)                      picked="gpt-5.4" ;;
+            security_HIGH|security_MEDIUM)       picked="gpt-5.4" ;;
+            reasoning_HIGH)                      picked="gpt-5.4" ;;
+            data_analysis_HIGH)                  picked="gpt-5.4" ;;
         esac
     fi
 
@@ -398,7 +398,7 @@ get_fallback_chain() {
     elif [[ "$codex_enabled" == "true" ]]; then
         case "$category" in
             coding_arch|coding_general|debugging|security)
-                raw_chain="${primary},gpt-5.4-codex,glm-5.1,glm-5,glm-5-turbo"
+                raw_chain="${primary},gpt-5.4,glm-5.1,glm-5,glm-5-turbo"
                 ;;
             *)
                 raw_chain="${primary},glm-5.1,glm-5,glm-5-turbo"
