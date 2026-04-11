@@ -45,6 +45,106 @@
       "auth": "oauth_codex",
       "plans": ["oauth"],
       "note": "ChatGPT Plus/Pro 구독 OAuth 보유 시에만. codex_oauth_enabled=true 일 때 활성."
+    },
+    "openrouter-llama-3.3-70b-free": {
+      "displayName": "Llama 3.3 70B Instruct (OpenRouter Free)",
+      "tier": "MEDIUM",
+      "contextWindow": 131072,
+      "maxTokens": 8192,
+      "scores": { "coding": 78, "reasoning": 75, "korean": 65 },
+      "reasoningMode": false,
+      "free": true,
+      "auth": "api_key_openrouter",
+      "openrouterId": "meta-llama/llama-3.3-70b-instruct:free",
+      "plans": ["openrouter"],
+      "note": "OpenRouter 무료 티어. 일일 한도 있음. OPENROUTER_PREFER_FREE=true 시 우선 배정."
+    },
+    "openrouter-mistral-7b-free": {
+      "displayName": "Mistral 7B Instruct (OpenRouter Free)",
+      "tier": "LOW",
+      "contextWindow": 32768,
+      "maxTokens": 4096,
+      "scores": { "coding": 68, "reasoning": 65, "korean": 55 },
+      "reasoningMode": false,
+      "free": true,
+      "auth": "api_key_openrouter",
+      "openrouterId": "mistralai/mistral-7b-instruct:free",
+      "plans": ["openrouter"],
+      "note": "OpenRouter 무료 티어. 경량 작업 적합."
+    },
+    "openrouter-qwen-2.5-72b-free": {
+      "displayName": "Qwen 2.5 72B Instruct (OpenRouter Free)",
+      "tier": "MEDIUM",
+      "contextWindow": 131072,
+      "maxTokens": 8192,
+      "scores": { "coding": 80, "reasoning": 78, "korean": 85 },
+      "reasoningMode": false,
+      "free": true,
+      "auth": "api_key_openrouter",
+      "openrouterId": "qwen/qwen-2.5-72b-instruct:free",
+      "plans": ["openrouter"],
+      "note": "OpenRouter 무료 티어. 한국어 강점."
+    },
+    "openrouter-gemma-3-27b-free": {
+      "displayName": "Gemma 3 27B IT (OpenRouter Free)",
+      "tier": "LOW",
+      "contextWindow": 131072,
+      "maxTokens": 8192,
+      "scores": { "coding": 72, "reasoning": 70, "korean": 60 },
+      "reasoningMode": false,
+      "free": true,
+      "auth": "api_key_openrouter",
+      "openrouterId": "google/gemma-3-27b-it:free",
+      "plans": ["openrouter"],
+      "note": "OpenRouter 무료 티어. Google Gemma 3 경량."
+    },
+    "openrouter-claude-opus-4": {
+      "displayName": "Claude Opus 4 (OpenRouter)",
+      "tier": "HIGH",
+      "contextWindow": 200000,
+      "maxTokens": 32000,
+      "scores": { "coding": 95, "reasoning": 98, "korean": 85 },
+      "reasoningMode": true,
+      "auth": "api_key_openrouter",
+      "openrouterId": "anthropic/claude-opus-4",
+      "plans": ["openrouter"],
+      "note": "OpenRouter 경유 Claude Opus 4. OPENROUTER_ENABLED=true + OPENROUTER_API_KEY 필요."
+    },
+    "openrouter-gemini-2.5-pro": {
+      "displayName": "Gemini 2.5 Pro (OpenRouter)",
+      "tier": "HIGH",
+      "contextWindow": 1000000,
+      "maxTokens": 65536,
+      "scores": { "coding": 90, "reasoning": 92, "korean": 80 },
+      "reasoningMode": true,
+      "auth": "api_key_openrouter",
+      "openrouterId": "google/gemini-2.5-pro",
+      "plans": ["openrouter"],
+      "note": "OpenRouter 경유 Gemini 2.5 Pro. 데이터 분석/멀티모달 강점."
+    },
+    "openrouter-deepseek-r1": {
+      "displayName": "DeepSeek R1 (OpenRouter)",
+      "tier": "HIGH",
+      "contextWindow": 128000,
+      "maxTokens": 32768,
+      "scores": { "coding": 88, "reasoning": 96, "korean": 75 },
+      "reasoningMode": true,
+      "auth": "api_key_openrouter",
+      "openrouterId": "deepseek/deepseek-r1",
+      "plans": ["openrouter"],
+      "note": "OpenRouter 경유 DeepSeek R1. 추론/수학 최강."
+    },
+    "openrouter-qwen3-235b": {
+      "displayName": "Qwen3 235B A22B (OpenRouter)",
+      "tier": "MEDIUM",
+      "contextWindow": 131072,
+      "maxTokens": 32768,
+      "scores": { "coding": 85, "reasoning": 88, "korean": 90 },
+      "reasoningMode": false,
+      "auth": "api_key_openrouter",
+      "openrouterId": "qwen/qwen3-235b-a22b",
+      "plans": ["openrouter"],
+      "note": "OpenRouter 경유 Qwen3 235B. 한국어 강점, 비용 효율."
     }
   },
 
@@ -140,6 +240,34 @@
     }
   },
 
+  "openrouterFreeOverlay": {
+    "enabledWhen": "openrouter_prefer_free == true",
+    "comment": "OPENROUTER_PREFER_FREE=true 시 LOW/MEDIUM 복잡도 작업을 무료 모델로 우선 배정 (P78). HIGH 복잡도는 품질 보장을 위해 유료 모델(P79 이하)로 위임. 무료 모델 없는 카테고리/티어 조합은 P79 openrouterOverlay로 graceful fallback.",
+    "freeModels": ["openrouter-llama-3.3-70b-free", "openrouter-mistral-7b-free", "openrouter-qwen-2.5-72b-free", "openrouter-gemma-3-27b-free"],
+    "overrides": {
+      "coding_general":   { "LOW": "openrouter-mistral-7b-free",      "MEDIUM": "openrouter-llama-3.3-70b-free" },
+      "coding_arch":      { "LOW": "openrouter-qwen-2.5-72b-free",    "MEDIUM": "openrouter-llama-3.3-70b-free" },
+      "korean_nlp":       { "LOW": "openrouter-qwen-2.5-72b-free",    "MEDIUM": "openrouter-qwen-2.5-72b-free"  },
+      "reasoning":        { "LOW": "openrouter-llama-3.3-70b-free",   "MEDIUM": "openrouter-llama-3.3-70b-free" },
+      "debugging":        { "LOW": "openrouter-mistral-7b-free",      "MEDIUM": "openrouter-llama-3.3-70b-free" },
+      "content_creation": { "LOW": "openrouter-gemma-3-27b-free",     "MEDIUM": "openrouter-llama-3.3-70b-free" },
+      "data_analysis":    { "LOW": "openrouter-qwen-2.5-72b-free",    "MEDIUM": "openrouter-llama-3.3-70b-free" },
+      "security":         { "LOW": "openrouter-llama-3.3-70b-free",   "MEDIUM": "openrouter-llama-3.3-70b-free" }
+    }
+  },
+
+  "openrouterOverlay": {
+    "enabledWhen": "openrouter_enabled == true",
+    "comment": "OpenRouter 경유 외부 모델 오버레이. codexOverlay(P80) 다음, matrix(P75) 이전 P79 우선순위. codex+openrouter 동시 활성 시 codex 가 우선. coding_general/debugging 미커버: GLM-5.1 대비 OpenRouter 모델의 우위가 불명확하여 기본 matrix 위임.",
+    "overrides": {
+      "reasoning":       { "HIGH":   "openrouter-deepseek-r1" },
+      "coding_arch":     { "HIGH":   "openrouter-claude-opus-4" },
+      "data_analysis":   { "HIGH":   "openrouter-gemini-2.5-pro" },
+      "korean_nlp":      { "HIGH":   "openrouter-qwen3-235b",   "MEDIUM": "openrouter-qwen3-235b" },
+      "security":        { "HIGH":   "openrouter-claude-opus-4" }
+    }
+  },
+
   "complexityTiers": {
     "LOW":    { "min": 0,  "max": 4  },
     "MEDIUM": { "min": 5,  "max": 9  },
@@ -208,6 +336,17 @@
           { "id": "codex-primary",   "authType": "oauth_codex", "codexHome": "~/.codex",       "weight": 10, "enabled": false },
           { "id": "codex-secondary", "authType": "oauth_codex", "codexHome": "~/.codex-acct2", "weight": 10, "enabled": false }
         ]
+      },
+      "openrouter": {
+        "providerId": "openrouter",
+        "baseUrl": "https://openrouter.ai/api/v1",
+        "strategy": "round_robin",
+        "optional": true,
+        "modelPrefixes": ["openrouter-"],
+        "comment": "활성화: 1) OPENROUTER_API_KEY 발급 2) 본 풀 enabled=true 3) OPENROUTER_ENABLED=true. openrouter.ai 에서 200+ 모델 접근.",
+        "accounts": [
+          { "id": "openrouter-primary", "authType": "api_key", "envKey": "OPENROUTER_API_KEY", "weight": 10, "enabled": false }
+        ]
       }
     },
     "fanOutExample": {
@@ -241,6 +380,13 @@
       "coding":    ["gpt-5.4", "glm-5.1", "glm-5", "glm-5-turbo"],
       "security":  ["gpt-5.4", "glm-5.1", "glm-5"],
       "reasoning": ["gpt-5.4", "glm-5.1", "glm-5", "glm-5-turbo"]
+    },
+    "withOpenRouter": {
+      "coding":    ["openrouter-claude-opus-4", "glm-5.1", "glm-5", "glm-5-turbo"],
+      "korean":    ["openrouter-qwen3-235b",    "glm-5.1", "glm-5", "glm-5-turbo"],
+      "reasoning": ["openrouter-deepseek-r1",   "glm-5.1", "glm-5", "glm-5-turbo"],
+      "security":  ["openrouter-claude-opus-4", "glm-5.1", "glm-5"],
+      "data":      ["openrouter-gemini-2.5-pro","glm-5.1", "glm-5", "glm-5-turbo"]
     }
   }
 }
