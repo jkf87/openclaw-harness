@@ -283,15 +283,8 @@ fi
 # ──────────────────────────────────────────────
 # Fallback chain
 # ──────────────────────────────────────────────
-if [[ "$CODEX" == "true" ]]; then
-  case "$CATEGORY" in
-    coding_*|debugging) FB_KEY="coding" ;;
-    security)           FB_KEY="security" ;;
-    reasoning)          FB_KEY="reasoning" ;;
-    *)                  FB_KEY="coding" ;;
-  esac
-  CHAIN=$(jq -r --arg k "$FB_KEY" '.fallbackChains.withCodex[$k] // .fallbackChains.withCodex.coding | join(",")' "$ROUTING_FILE")
-elif [[ "$OPENROUTER" == "true" ]]; then
+if [[ -n "$OPENROUTER_MODEL_OVERRIDE" || "$OPENROUTER" == "true" ]]; then
+  # --openrouter-model 지정 시 codex 활성화 여부와 무관하게 withOpenRouter fallback 사용
   case "$CATEGORY" in
     coding_*|debugging) FB_KEY="coding" ;;
     korean_nlp|content_creation) FB_KEY="korean" ;;
@@ -301,6 +294,14 @@ elif [[ "$OPENROUTER" == "true" ]]; then
     *)                  FB_KEY="coding" ;;
   esac
   CHAIN=$(jq -r --arg k "$FB_KEY" '.fallbackChains.withOpenRouter[$k] // .fallbackChains.withOpenRouter.coding | join(",")' "$ROUTING_FILE")
+elif [[ "$CODEX" == "true" ]]; then
+  case "$CATEGORY" in
+    coding_*|debugging) FB_KEY="coding" ;;
+    security)           FB_KEY="security" ;;
+    reasoning)          FB_KEY="reasoning" ;;
+    *)                  FB_KEY="coding" ;;
+  esac
+  CHAIN=$(jq -r --arg k "$FB_KEY" '.fallbackChains.withCodex[$k] // .fallbackChains.withCodex.coding | join(",")' "$ROUTING_FILE")
 else
   case "$CATEGORY" in
     korean_nlp|content_creation) FB_KEY="korean" ;;
