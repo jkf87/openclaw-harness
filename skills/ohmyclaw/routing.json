@@ -345,8 +345,7 @@
         "modelPrefixes": ["openrouter-"],
         "comment": "활성화: 1) OPENROUTER_API_KEY 발급 2) 본 풀 enabled=true 3) OPENROUTER_ENABLED=true. openrouter.ai 에서 200+ 모델 접근.",
         "accounts": [
-          { "id": "openrouter-primary",   "authType": "api_key", "envKey": "OPENROUTER_API_KEY",   "weight": 10, "enabled": false },
-          { "id": "openrouter-secondary", "authType": "api_key", "envKey": "OPENROUTER_API_KEY_2", "weight": 10, "enabled": false }
+          { "id": "openrouter-primary", "authType": "api_key", "envKey": "OPENROUTER_API_KEY", "weight": 10, "enabled": false }
         ]
       }
     },

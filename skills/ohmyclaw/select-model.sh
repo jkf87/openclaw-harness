@@ -2,7 +2,7 @@
 # ohmyclaw skill — model router (jq-based, deterministic)
 #
 # Usage:
-#   select-model.sh <task-text> [category] [--plan=lite|pro|max] [--codex] [--openrouter] [--prefer-free] [--json]
+#   select-model.sh <task-text> [category] [--plan=lite|pro|max] [--codex] [--openrouter] [--prefer-free] [--openrouter-model=<id>] [--json]
 #
 # Examples:
 #   select-model.sh "REST API 인증 미들웨어 설계" coding_arch --plan=pro
@@ -10,6 +10,7 @@
 #   select-model.sh "$(cat task.md)" auto --plan=pro --json
 #   select-model.sh "architectural refactor design" coding_arch --plan=pro --openrouter
 #   select-model.sh "간단한 코드 수정" coding_general --openrouter --prefer-free
+#   select-model.sh "deep analysis task" auto --openrouter-model=openrouter-claude-opus-4
 #
 # Reads: routing.json (same directory)
 # Outputs: model id (one line) OR full JSON decision (--json)
@@ -18,7 +19,8 @@
 #   ZAI_CODING_PLAN=lite|pro|max
 #   CODEX_OAUTH_ENABLED=true|false
 #   OPENROUTER_ENABLED=true|false
-#   OPENROUTER_PREFER_FREE=true|false  (기본: false, true 시 LOW/MEDIUM 작업에 무료 모델 우선)
+#   OPENROUTER_PREFER_FREE=true|false      (기본: false, true 시 LOW/MEDIUM 작업에 무료 모델 우선)
+#   OPENROUTER_MODEL_OVERRIDE=<model-id>   (특정 OpenRouter 모델 강제 지정, --openrouter-model 과 동일)
 
 set -euo pipefail
 
@@ -44,25 +46,32 @@ PLAN="${ZAI_CODING_PLAN:-pro}"
 CODEX="${CODEX_OAUTH_ENABLED:-false}"
 OPENROUTER="${OPENROUTER_ENABLED:-false}"
 PREFER_FREE="${OPENROUTER_PREFER_FREE:-false}"
+OPENROUTER_MODEL_OVERRIDE="${OPENROUTER_MODEL_OVERRIDE:-}"
 OUTPUT_JSON=false
 
 shift 2 2>/dev/null || true
 for arg in "$@"; do
   case "$arg" in
-    --plan=*)          PLAN="${arg#*=}" ;;
-    --codex)           CODEX=true ;;
-    --no-codex)        CODEX=false ;;
-    --openrouter)      OPENROUTER=true ;;
-    --no-openrouter)   OPENROUTER=false ;;
-    --prefer-free)     PREFER_FREE=true ;;
-    --no-prefer-free)  PREFER_FREE=false ;;
-    --json)            OUTPUT_JSON=true ;;
+    --plan=*)              PLAN="${arg#*=}" ;;
+    --codex)               CODEX=true ;;
+    --no-codex)            CODEX=false ;;
+    --openrouter)          OPENROUTER=true ;;
+    --no-openrouter)       OPENROUTER=false ;;
+    --prefer-free)         PREFER_FREE=true ;;
+    --no-prefer-free)      PREFER_FREE=false ;;
+    --openrouter-model=*)  OPENROUTER_MODEL_OVERRIDE="${arg#*=}" ;;
+    --json)                OUTPUT_JSON=true ;;
   esac
 done
 
+# --openrouter-model 지정 시 자동으로 OpenRouter 활성화
+if [[ -n "$OPENROUTER_MODEL_OVERRIDE" ]]; then
+  OPENROUTER=true
+fi
+
 if [[ -z "$TASK_TEXT" ]]; then
   cat >&2 <<EOF
-Usage: $0 <task-text> [category] [--plan=lite|pro|max] [--codex] [--openrouter] [--prefer-free] [--json]
+Usage: $0 <task-text> [category] [--plan=lite|pro|max] [--codex] [--openrouter] [--prefer-free] [--openrouter-model=<id>] [--json]
 Categories: auto, coding_general, coding_arch, korean_nlp, reasoning,
             debugging, content_creation, data_analysis, security
 EOF
@@ -70,6 +79,18 @@ EOF
 fi
 
 case "$PLAN" in lite|pro|max) ;; *) echo "ERROR: invalid plan '$PLAN'" >&2; exit 2 ;; esac
+
+# --openrouter-model 유효성 검증: routing.json 에 openrouterId 가 있는 모델만 허용
+if [[ -n "$OPENROUTER_MODEL_OVERRIDE" ]]; then
+  VALID=$(jq -r --arg m "$OPENROUTER_MODEL_OVERRIDE" \
+    'if .models[$m].openrouterId then "yes" else "no" end' "$ROUTING_FILE")
+  if [[ "$VALID" != "yes" ]]; then
+    VALID_LIST=$(jq -r '[.models | to_entries[] | select(.value.openrouterId) | .key] | join(", ")' "$ROUTING_FILE")
+    echo "ERROR: unknown OpenRouter model '$OPENROUTER_MODEL_OVERRIDE'" >&2
+    echo "Valid models: $VALID_LIST" >&2
+    exit 2
+  fi
+fi
 
 # ──────────────────────────────────────────────
 # Korean ratio
@@ -192,6 +213,12 @@ fi
 PICKED=""
 REASON=""
 
+# P99: explicit openrouter model override — 모든 자동 라우팅 우선
+if [[ -z "$PICKED" && -n "$OPENROUTER_MODEL_OVERRIDE" ]]; then
+  PICKED="$OPENROUTER_MODEL_OVERRIDE"
+  REASON="openrouter_model_override (P99)"
+fi
+
 # P82: reasoning_heavy + Codex → gpt-5.4
 if [[ -z "$PICKED" && "$CODEX" == "true" && "$REASONING_HEAVY" == "true" ]]; then
   PICKED="gpt-5.4"
@@ -301,6 +328,7 @@ if [[ "$OUTPUT_JSON" == "true" ]]; then
     --arg codex "$CODEX" \
     --arg openrouter "$OPENROUTER" \
     --arg prefer_free "$PREFER_FREE" \
+    --arg or_model_override "$OPENROUTER_MODEL_OVERRIDE" \
     --arg reason "$REASON" \
     --arg fallback "$FALLBACK" \
     '{
@@ -313,6 +341,7 @@ if [[ "$OUTPUT_JSON" == "true" ]]; then
       codexOauthEnabled: ($codex == "true"),
       openrouterEnabled: ($openrouter == "true"),
       openrouterPreferFree: ($prefer_free == "true"),
+      openrouterModelOverride: (if $or_model_override == "" then null else $or_model_override end),
       reason: $reason,
       fallbackChain: ($fallback | split(","))
     }'
