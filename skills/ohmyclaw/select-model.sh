@@ -220,6 +220,7 @@ PICKED=""
 REASON=""
 
 # P99: explicit openrouter model override — 모든 자동 라우팅 우선
+# (PICKED는 항상 빈 값이지만 일관성을 위해 가드 유지)
 if [[ -z "$PICKED" && -n "$OPENROUTER_MODEL_OVERRIDE" ]]; then
   PICKED="$OPENROUTER_MODEL_OVERRIDE"
   REASON="openrouter_model_override (P99)"
