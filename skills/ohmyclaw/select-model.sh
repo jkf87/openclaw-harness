@@ -2,13 +2,14 @@
 # ohmyclaw skill — model router (jq-based, deterministic)
 #
 # Usage:
-#   select-model.sh <task-text> [category] [--plan=lite|pro|max] [--codex] [--openrouter] [--json]
+#   select-model.sh <task-text> [category] [--plan=lite|pro|max] [--codex] [--openrouter] [--prefer-free] [--json]
 #
 # Examples:
 #   select-model.sh "REST API 인증 미들웨어 설계" coding_arch --plan=pro
 #   select-model.sh "분산 합의 알고리즘 정합성 증명" reasoning --plan=max --codex
 #   select-model.sh "$(cat task.md)" auto --plan=pro --json
 #   select-model.sh "architectural refactor design" coding_arch --plan=pro --openrouter
+#   select-model.sh "간단한 코드 수정" coding_general --openrouter --prefer-free
 #
 # Reads: routing.json (same directory)
 # Outputs: model id (one line) OR full JSON decision (--json)
@@ -17,6 +18,7 @@
 #   ZAI_CODING_PLAN=lite|pro|max
 #   CODEX_OAUTH_ENABLED=true|false
 #   OPENROUTER_ENABLED=true|false
+#   OPENROUTER_PREFER_FREE=true|false  (기본: false, true 시 LOW/MEDIUM 작업에 무료 모델 우선)
 
 set -euo pipefail
 
@@ -41,17 +43,20 @@ CATEGORY="${2:-auto}"
 PLAN="${ZAI_CODING_PLAN:-pro}"
 CODEX="${CODEX_OAUTH_ENABLED:-false}"
 OPENROUTER="${OPENROUTER_ENABLED:-false}"
+PREFER_FREE="${OPENROUTER_PREFER_FREE:-false}"
 OUTPUT_JSON=false
 
 shift 2 2>/dev/null || true
 for arg in "$@"; do
   case "$arg" in
-    --plan=*)         PLAN="${arg#*=}" ;;
-    --codex)          CODEX=true ;;
-    --no-codex)       CODEX=false ;;
-    --openrouter)     OPENROUTER=true ;;
-    --no-openrouter)  OPENROUTER=false ;;
-    --json)           OUTPUT_JSON=true ;;
+    --plan=*)          PLAN="${arg#*=}" ;;
+    --codex)           CODEX=true ;;
+    --no-codex)        CODEX=false ;;
+    --openrouter)      OPENROUTER=true ;;
+    --no-openrouter)   OPENROUTER=false ;;
+    --prefer-free)     PREFER_FREE=true ;;
+    --no-prefer-free)  PREFER_FREE=false ;;
+    --json)            OUTPUT_JSON=true ;;
   esac
 done
 
@@ -215,6 +220,16 @@ if [[ -z "$PICKED" && "$CODEX" == "true" ]]; then
   fi
 fi
 
+# P78: openrouter prefer_free overlay (LOW/MEDIUM만 적용, HIGH는 P79로 위임)
+if [[ -z "$PICKED" && "$OPENROUTER" == "true" && "$PREFER_FREE" == "true" ]]; then
+  OVERLAY=$(jq -r --arg c "$CATEGORY" --arg t "$TIER" \
+    '.openrouterFreeOverlay.overrides[$c][$t] // empty' "$ROUTING_FILE")
+  if [[ -n "$OVERLAY" ]]; then
+    PICKED="$OVERLAY"
+    REASON="openrouter_free_overlay ${CATEGORY}/${TIER} (P78)"
+  fi
+fi
+
 # P79: openrouter overlay
 if [[ -z "$PICKED" && "$OPENROUTER" == "true" ]]; then
   OVERLAY=$(jq -r --arg c "$CATEGORY" --arg t "$TIER" \
@@ -285,6 +300,7 @@ if [[ "$OUTPUT_JSON" == "true" ]]; then
     --arg plan "$PLAN" \
     --arg codex "$CODEX" \
     --arg openrouter "$OPENROUTER" \
+    --arg prefer_free "$PREFER_FREE" \
     --arg reason "$REASON" \
     --arg fallback "$FALLBACK" \
     '{
@@ -296,6 +312,7 @@ if [[ "$OUTPUT_JSON" == "true" ]]; then
       activePlan: $plan,
       codexOauthEnabled: ($codex == "true"),
       openrouterEnabled: ($openrouter == "true"),
+      openrouterPreferFree: ($prefer_free == "true"),
       reason: $reason,
       fallbackChain: ($fallback | split(","))
     }'

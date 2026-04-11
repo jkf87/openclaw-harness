@@ -46,6 +46,58 @@
       "plans": ["oauth"],
       "note": "ChatGPT Plus/Pro 구독 OAuth 보유 시에만. codex_oauth_enabled=true 일 때 활성."
     },
+    "openrouter-llama-3.3-70b-free": {
+      "displayName": "Llama 3.3 70B Instruct (OpenRouter Free)",
+      "tier": "MEDIUM",
+      "contextWindow": 131072,
+      "maxTokens": 8192,
+      "scores": { "coding": 78, "reasoning": 75, "korean": 65 },
+      "reasoningMode": false,
+      "free": true,
+      "auth": "api_key_openrouter",
+      "openrouterId": "meta-llama/llama-3.3-70b-instruct:free",
+      "plans": ["openrouter"],
+      "note": "OpenRouter 무료 티어. 일일 한도 있음. OPENROUTER_PREFER_FREE=true 시 우선 배정."
+    },
+    "openrouter-mistral-7b-free": {
+      "displayName": "Mistral 7B Instruct (OpenRouter Free)",
+      "tier": "LOW",
+      "contextWindow": 32768,
+      "maxTokens": 4096,
+      "scores": { "coding": 68, "reasoning": 65, "korean": 55 },
+      "reasoningMode": false,
+      "free": true,
+      "auth": "api_key_openrouter",
+      "openrouterId": "mistralai/mistral-7b-instruct:free",
+      "plans": ["openrouter"],
+      "note": "OpenRouter 무료 티어. 경량 작업 적합."
+    },
+    "openrouter-qwen-2.5-72b-free": {
+      "displayName": "Qwen 2.5 72B Instruct (OpenRouter Free)",
+      "tier": "MEDIUM",
+      "contextWindow": 131072,
+      "maxTokens": 8192,
+      "scores": { "coding": 80, "reasoning": 78, "korean": 85 },
+      "reasoningMode": false,
+      "free": true,
+      "auth": "api_key_openrouter",
+      "openrouterId": "qwen/qwen-2.5-72b-instruct:free",
+      "plans": ["openrouter"],
+      "note": "OpenRouter 무료 티어. 한국어 강점."
+    },
+    "openrouter-gemma-3-27b-free": {
+      "displayName": "Gemma 3 27B IT (OpenRouter Free)",
+      "tier": "LOW",
+      "contextWindow": 131072,
+      "maxTokens": 8192,
+      "scores": { "coding": 72, "reasoning": 70, "korean": 60 },
+      "reasoningMode": false,
+      "free": true,
+      "auth": "api_key_openrouter",
+      "openrouterId": "google/gemma-3-27b-it:free",
+      "plans": ["openrouter"],
+      "note": "OpenRouter 무료 티어. Google Gemma 3 경량."
+    },
     "openrouter-claude-opus-4": {
       "displayName": "Claude Opus 4 (OpenRouter)",
       "tier": "HIGH",
@@ -185,6 +237,22 @@
       "security":        { "MEDIUM": "gpt-5.4", "HIGH": "gpt-5.4" },
       "reasoning":       { "HIGH":   "gpt-5.4" },
       "data_analysis":   { "HIGH":   "gpt-5.4" }
+    }
+  },
+
+  "openrouterFreeOverlay": {
+    "enabledWhen": "openrouter_prefer_free == true",
+    "comment": "OPENROUTER_PREFER_FREE=true 시 LOW/MEDIUM 복잡도 작업을 무료 모델로 우선 배정 (P78). HIGH 복잡도는 품질 보장을 위해 유료 모델(P79 이하)로 위임. 무료 모델 없는 카테고리/티어 조합은 P79 openrouterOverlay로 graceful fallback.",
+    "freeModels": ["openrouter-llama-3.3-70b-free", "openrouter-mistral-7b-free", "openrouter-qwen-2.5-72b-free", "openrouter-gemma-3-27b-free"],
+    "overrides": {
+      "coding_general":   { "LOW": "openrouter-mistral-7b-free",      "MEDIUM": "openrouter-llama-3.3-70b-free" },
+      "coding_arch":      { "LOW": "openrouter-qwen-2.5-72b-free",    "MEDIUM": "openrouter-llama-3.3-70b-free" },
+      "korean_nlp":       { "LOW": "openrouter-qwen-2.5-72b-free",    "MEDIUM": "openrouter-qwen-2.5-72b-free"  },
+      "reasoning":        { "LOW": "openrouter-llama-3.3-70b-free",   "MEDIUM": "openrouter-llama-3.3-70b-free" },
+      "debugging":        { "LOW": "openrouter-mistral-7b-free",      "MEDIUM": "openrouter-llama-3.3-70b-free" },
+      "content_creation": { "LOW": "openrouter-gemma-3-27b-free",     "MEDIUM": "openrouter-llama-3.3-70b-free" },
+      "data_analysis":    { "LOW": "openrouter-qwen-2.5-72b-free",    "MEDIUM": "openrouter-llama-3.3-70b-free" },
+      "security":         { "LOW": "openrouter-llama-3.3-70b-free",   "MEDIUM": "openrouter-llama-3.3-70b-free" }
     }
   },
 
