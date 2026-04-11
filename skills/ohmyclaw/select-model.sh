@@ -2,14 +2,14 @@
 # ohmyclaw skill — model router (jq-based, deterministic)
 #
 # Usage:
-#   select-model.sh <task-text> [category] [--plan=lite|pro|max] [--codex] [--openrouter] [--prefer-free] [--openrouter-model=<id>] [--json]
+#   select-model.sh <task-text> [category] [--plan=lite|pro|max] [--codex] [--openrouter] [--openrouter-prefer-free] [--openrouter-model=<id>] [--json]
 #
 # Examples:
 #   select-model.sh "REST API 인증 미들웨어 설계" coding_arch --plan=pro
 #   select-model.sh "분산 합의 알고리즘 정합성 증명" reasoning --plan=max --codex
 #   select-model.sh "$(cat task.md)" auto --plan=pro --json
 #   select-model.sh "architectural refactor design" coding_arch --plan=pro --openrouter
-#   select-model.sh "간단한 코드 수정" coding_general --openrouter --prefer-free
+#   select-model.sh "간단한 코드 수정" coding_general --openrouter --openrouter-prefer-free
 #   select-model.sh "deep analysis task" auto --openrouter-model=openrouter-claude-opus-4
 #
 # Reads: routing.json (same directory)
@@ -57,8 +57,8 @@ for arg in "$@"; do
     --no-codex)            CODEX=false ;;
     --openrouter)          OPENROUTER=true ;;
     --no-openrouter)       OPENROUTER=false ;;
-    --prefer-free)         PREFER_FREE=true ;;
-    --no-prefer-free)      PREFER_FREE=false ;;
+    --openrouter-prefer-free)    PREFER_FREE=true ;;
+    --no-openrouter-prefer-free) PREFER_FREE=false ;;
     --openrouter-model=*)
       OPENROUTER_MODEL_OVERRIDE="${arg#*=}"
       if [[ -z "$OPENROUTER_MODEL_OVERRIDE" ]]; then
@@ -77,7 +77,7 @@ fi
 
 if [[ -z "$TASK_TEXT" ]]; then
   cat >&2 <<EOF
-Usage: $0 <task-text> [category] [--plan=lite|pro|max] [--codex] [--openrouter] [--prefer-free] [--openrouter-model=<id>] [--json]
+Usage: $0 <task-text> [category] [--plan=lite|pro|max] [--codex] [--openrouter] [--openrouter-prefer-free] [--openrouter-model=<id>] [--json]
 Categories: auto, coding_general, coding_arch, korean_nlp, reasoning,
             debugging, content_creation, data_analysis, security
 EOF
