@@ -2,12 +2,13 @@
 # ohmyclaw skill — model router (jq-based, deterministic)
 #
 # Usage:
-#   select-model.sh <task-text> [category] [--plan=lite|pro|max] [--codex] [--json]
+#   select-model.sh <task-text> [category] [--plan=lite|pro|max] [--codex] [--openrouter] [--json]
 #
 # Examples:
 #   select-model.sh "REST API 인증 미들웨어 설계" coding_arch --plan=pro
 #   select-model.sh "분산 합의 알고리즘 정합성 증명" reasoning --plan=max --codex
 #   select-model.sh "$(cat task.md)" auto --plan=pro --json
+#   select-model.sh "architectural refactor design" coding_arch --plan=pro --openrouter
 #
 # Reads: routing.json (same directory)
 # Outputs: model id (one line) OR full JSON decision (--json)
@@ -15,6 +16,7 @@
 # Env overrides:
 #   ZAI_CODING_PLAN=lite|pro|max
 #   CODEX_OAUTH_ENABLED=true|false
+#   OPENROUTER_ENABLED=true|false
 
 set -euo pipefail
 
@@ -38,21 +40,24 @@ TASK_TEXT="${1:-}"
 CATEGORY="${2:-auto}"
 PLAN="${ZAI_CODING_PLAN:-pro}"
 CODEX="${CODEX_OAUTH_ENABLED:-false}"
+OPENROUTER="${OPENROUTER_ENABLED:-false}"
 OUTPUT_JSON=false
 
 shift 2 2>/dev/null || true
 for arg in "$@"; do
   case "$arg" in
-    --plan=*) PLAN="${arg#*=}" ;;
-    --codex)  CODEX=true ;;
-    --no-codex) CODEX=false ;;
-    --json)   OUTPUT_JSON=true ;;
+    --plan=*)         PLAN="${arg#*=}" ;;
+    --codex)          CODEX=true ;;
+    --no-codex)       CODEX=false ;;
+    --openrouter)     OPENROUTER=true ;;
+    --no-openrouter)  OPENROUTER=false ;;
+    --json)           OUTPUT_JSON=true ;;
   esac
 done
 
 if [[ -z "$TASK_TEXT" ]]; then
   cat >&2 <<EOF
-Usage: $0 <task-text> [category] [--plan=lite|pro|max] [--codex] [--json]
+Usage: $0 <task-text> [category] [--plan=lite|pro|max] [--codex] [--openrouter] [--json]
 Categories: auto, coding_general, coding_arch, korean_nlp, reasoning,
             debugging, content_creation, data_analysis, security
 EOF
@@ -210,6 +215,16 @@ if [[ -z "$PICKED" && "$CODEX" == "true" ]]; then
   fi
 fi
 
+# P79: openrouter overlay
+if [[ -z "$PICKED" && "$OPENROUTER" == "true" ]]; then
+  OVERLAY=$(jq -r --arg c "$CATEGORY" --arg t "$TIER" \
+    '.openrouterOverlay.overrides[$c][$t] // empty' "$ROUTING_FILE")
+  if [[ -n "$OVERLAY" ]]; then
+    PICKED="$OVERLAY"
+    REASON="openrouter_overlay ${CATEGORY}/${TIER} (P79)"
+  fi
+fi
+
 # P75/P50/P0: plan matrix
 if [[ -z "$PICKED" ]]; then
   PICKED=$(jq -r --arg p "$PLAN" --arg c "$CATEGORY" --arg t "$TIER" \
@@ -234,6 +249,16 @@ if [[ "$CODEX" == "true" ]]; then
     *)                  FB_KEY="coding" ;;
   esac
   CHAIN=$(jq -r --arg k "$FB_KEY" '.fallbackChains.withCodex[$k] // .fallbackChains.withCodex.coding | join(",")' "$ROUTING_FILE")
+elif [[ "$OPENROUTER" == "true" ]]; then
+  case "$CATEGORY" in
+    coding_*|debugging) FB_KEY="coding" ;;
+    korean_nlp|content_creation) FB_KEY="korean" ;;
+    reasoning)          FB_KEY="reasoning" ;;
+    security)           FB_KEY="security" ;;
+    data_analysis)      FB_KEY="data" ;;
+    *)                  FB_KEY="coding" ;;
+  esac
+  CHAIN=$(jq -r --arg k "$FB_KEY" '.fallbackChains.withOpenRouter[$k] // .fallbackChains.withOpenRouter.coding | join(",")' "$ROUTING_FILE")
 else
   case "$CATEGORY" in
     korean_nlp|content_creation) FB_KEY="korean" ;;
@@ -259,6 +284,7 @@ if [[ "$OUTPUT_JSON" == "true" ]]; then
     --arg rh "$REASONING_HEAVY" \
     --arg plan "$PLAN" \
     --arg codex "$CODEX" \
+    --arg openrouter "$OPENROUTER" \
     --arg reason "$REASON" \
     --arg fallback "$FALLBACK" \
     '{
@@ -269,6 +295,7 @@ if [[ "$OUTPUT_JSON" == "true" ]]; then
       reasoningHeavy: ($rh == "true"),
       activePlan: $plan,
       codexOauthEnabled: ($codex == "true"),
+      openrouterEnabled: ($openrouter == "true"),
       reason: $reason,
       fallbackChain: ($fallback | split(","))
     }'
