@@ -172,6 +172,10 @@ CODEX_HOME=~/.codex-acct2 codex login    # 2번째
 CODEX_HOME=~/.codex-acct3 codex login    # 3번째
 CODEX_HOME=~/.codex-acct4 codex login    # 원하는 만큼
 
+# 파일이 없다고 오류나면(예시 3번째)
+mkdir -p ~/.codex-acct3 && CODEX_HOME=~/.codex-acct3 codex login
+
+
 # 2. routing.json 에 계정 추가 (skills/ohmyclaw/routing.json)
 #    accounts.pools.codex.accounts 배열에 항목 추가:
 #    { "id": "codex-acct3", "authType": "oauth_codex", "codexHome": "~/.codex-acct3", "weight": 10, "enabled": true }
