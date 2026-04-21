@@ -144,10 +144,43 @@ export OPENROUTER_PREFER_FREE=true
 
 1. **Z.ai matrix** (P75) — 기본 라우팅
 2. **Codex overlay** (P80) — GPT-5.4 격상
-3. **OpenRouter overlay** (P79) — 외부 모델 오버레이 (codex 다음 우선)
-4. **OpenRouter Free overlay** (P78) — 무료 모델 우선 (PREFER_FREE 시)
+3. **Claude Code CLI overlay** (P79.5) — 실험적 Claude delegation (⚠️ EXPERIMENTAL)
+4. **OpenRouter overlay** (P79) — 외부 모델 오버레이 (codex 다음 우선)
+5. **OpenRouter Free overlay** (P78) — 무료 모델 우선 (PREFER_FREE 시)
 
 > codex + openrouter 동시 활성 시 codex 가 우선입니다. HIGH 복잡도 작업은 무료 모델을 건너뛰고 유료 모델로 위임합니다.
+
+### Claude Code CLI Delegation (⚠️ EXPERIMENTAL)
+
+> **실험적 기능 — 기본 비활성 — 언제든 제거 가능**
+>
+> 공식 Claude Code CLI delegation 만 사용합니다. 직접 OAuth 토큰 주입 없음.
+> Anthropic 의 CLI delegation 정책이 변경되면 이 경로는 차단되거나 제거될 수 있습니다.
+
+활성화 시 `reasoning`, `coding_arch`, `security` 카테고리의 HIGH 복잡도 작업만 Claude Code CLI 로 위임합니다.
+
+#### 설정
+
+```bash
+# 1. claude CLI 설치 및 로그인
+claude login
+
+# 2. 환경변수 설정
+export CLAUDECLI_DELEGATION_ENABLED=true
+
+# 3. routing.json 에서 풀 활성화:
+#    accounts.pools.claudecli.accounts[0].enabled = true
+```
+
+#### 비활성화
+
+```bash
+unset CLAUDECLI_DELEGATION_ENABLED
+# 또는
+export CLAUDECLI_DELEGATION_ENABLED=false
+```
+
+> 비활성 시 기존 ohmyclaw 라우팅(GLM-5.1 등)으로 자동 폴백됩니다.
 
 ### 추론 인식
 
@@ -279,7 +312,8 @@ skills/ohmyclaw/
 ├── SKILL.md            (820줄)  14 섹션
 ├── routing.json        (380줄)  모델/플랜/매트릭스/계정 단일 소스 (+OpenRouter)
 ├── select-model.sh     (370줄)  jq 라우터 (+OpenRouter overlay)
-├── pool.sh             (305줄)  계정 풀 매니저 (+OpenRouter 풀)
+├── pool.sh             (305줄)  계정 풀 매니저 (+OpenRouter/ClaudeCLI 풀)
+├── claude-delegate.sh  (58줄)   실험적 Claude Code CLI delegation 헬퍼
 ├── hud.sh              (370줄)  대시보드 (+OpenRouter 섹션)
 └── prompts/            (1165줄) 10 role prompts (OMX MIT 카피 + 통합)
     ├── executor.md, planner.md, architect.md
